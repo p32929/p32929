@@ -1,12 +1,12 @@
-#### My portfolio
+###### My portfolio
 My Personal Portfolio created using ReactJS, which is also Open Source. Visit live: https://p32929.github.io/
 
 Fork it and create your own portfolio from here: https://github.com/p32929/p32929.github.io/
 
-#### My Github Stats
+###### My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
 
-##### Share My Profile
+####### Share My Profile
 Share this profile with your friends in just a click
 
 [![facebook](https://image.flaticon.com/icons/png/32/124/124010.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/p32929)
@@ -18,7 +18,7 @@ Share this profile with your friends in just a click
 [![linkedin](https://image.flaticon.com/icons/png/32/1409/1409945.png)](https://www.linkedin.com/shareArticle?mini=true&url=https://github.com/p32929)
 [![whatsapp](https://image.flaticon.com/icons/png/32/733/733585.png)](https://api.whatsapp.com/send?text=https://github.com/p32929)
 
-##### Share My Portfolio
+####### Share My Portfolio
 Share my portfolio ( https://p32929.github.io/ ) with your friends in just a click
 
 [![facebook](https://image.flaticon.com/icons/png/32/124/124010.png)](https://www.facebook.com/sharer/sharer.php?u=https://p32929.github.io/)
@@ -30,8 +30,8 @@ Share my portfolio ( https://p32929.github.io/ ) with your friends in just a cli
 [![linkedin](https://image.flaticon.com/icons/png/32/1409/1409945.png)](https://www.linkedin.com/shareArticle?mini=true&url=https://p32929.github.io/)
 [![whatsapp](https://image.flaticon.com/icons/png/32/733/733585.png)](https://api.whatsapp.com/send?text=https://p32929.github.io/)
 
-##### Support
+####### Support
 If you like my works and want to support me/my works, feel free to support or donate. My payment details can be found here: https://p32929.github.io/SendMoney2Me/
 
-#### Thanks
+###### Thanks
 Thanks everyone for visiting my profile. If you are enjoying any of my works, whether it be a library or a template or anything, feel free to let me know. All my contact details can be found here: https://p32929.github.io/
