@@ -13,7 +13,7 @@ Share this profile with your friends in just a click
 [![whatsapp](https://image.flaticon.com/icons/png/32/733/733585.png)](https://api.whatsapp.com/send?text=https://github.com/p32929)
 
 ### Share my portfolio
-Share my portfolio with your friends in just a click
+Share my portfolio ( https://p32929.github.io/ ) with your friends in just a click
 
 [![facebook](https://image.flaticon.com/icons/png/32/124/124010.png)](https://www.facebook.com/sharer/sharer.php?u=https://p32929.github.io/)
 [![twitter](https://image.flaticon.com/icons/png/32/124/124021.png)](https://twitter.com/intent/tweet?source=https://p32929.github.io/)
