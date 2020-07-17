@@ -1,10 +1,3 @@
-![portfoliov2 1](https://user-images.githubusercontent.com/6418354/87682979-4dac7a80-c7a2-11ea-85d3-98c0258e0bf1.gif)
-
-
-### My Portfolio
-Here's my portfolio: https://p32929.github.io/
-
-### Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
 
 ### Share
