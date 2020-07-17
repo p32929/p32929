@@ -32,3 +32,6 @@ Share my portfolio ( https://p32929.github.io/ ) with your friends in just a cli
 
 ##### Support
 If you like my works and want to support me/my works, feel free to support or donate. My payment details can be found here: https://p32929.github.io/SendMoney2Me/
+
+#### Thanks
+Thanks everyone for visiting my profile. If you are enjoying any of my works, whether it be a library or a template or anything, feel free to let me know. All my contact details can be found here: https://p32929.github.io/
