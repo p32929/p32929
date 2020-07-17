@@ -1,5 +1,6 @@
 #### My portfolio
-Visit my open source personal portfolio, created using ReactJS, from here: https://p32929.github.io/
+My Personal Portfolio created using ReactJS, which is also Open Source. Visit live: https://p32929.github.io/
+Fork it and create your own portfolio from here: https://github.com/p32929/p32929.github.io/
 
 #### Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
