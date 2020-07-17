@@ -3,10 +3,10 @@ My Personal Portfolio created using ReactJS, which is also Open Source. Visit li
 
 Fork it and create your own portfolio from here: https://github.com/p32929/p32929.github.io/
 
-#### Stats
+#### My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
 
-##### Share
+##### Share My Profile
 Share this profile with your friends in just a click
 
 [![facebook](https://image.flaticon.com/icons/png/32/124/124010.png)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/p32929)
@@ -18,7 +18,7 @@ Share this profile with your friends in just a click
 [![linkedin](https://image.flaticon.com/icons/png/32/1409/1409945.png)](https://www.linkedin.com/shareArticle?mini=true&url=https://github.com/p32929)
 [![whatsapp](https://image.flaticon.com/icons/png/32/733/733585.png)](https://api.whatsapp.com/send?text=https://github.com/p32929)
 
-##### Share my portfolio
+##### Share My Portfolio
 Share my portfolio ( https://p32929.github.io/ ) with your friends in just a click
 
 [![facebook](https://image.flaticon.com/icons/png/32/124/124010.png)](https://www.facebook.com/sharer/sharer.php?u=https://p32929.github.io/)
