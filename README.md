@@ -4,6 +4,9 @@ https://p32929.github.io/
 ###### -> My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
 
+###### -> My Gists
+https://gist.github.com/p32929/
+
 ###### -> Share My Profile
 Share this profile with your friends in just a click
 
