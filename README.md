@@ -4,6 +4,8 @@ https://p32929.github.io/
 ###### -> My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)]() 
 
+![waterlessPiano2 languages](https://github-readme-stats.quantumlytangled.vercel.app/api/top-langs/?username=p32929)
+
 ###### -> My Gists
 https://gist.github.com/p32929/
 
