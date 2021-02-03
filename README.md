@@ -6,6 +6,8 @@ https://p32929.github.io/
 
 ![waterlessPiano2 languages](https://github-readme-stats.quantumlytangled.vercel.app/api/top-langs/?username=p32929)
 
+[![trophy](https://github-profile-trophy.vercel.app/?username=p32929)](https://p32929.github.io/)
+
 ###### -> My Gists
 https://gist.github.com/p32929/
 
