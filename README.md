@@ -2,7 +2,7 @@
 https://p32929.github.io/
 
 ###### -> My Github Stats
-[![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)](https://p32929.github.io/) 
+[![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true&langs_count=99)](https://p32929.github.io/) 
 
 [![waterlessPiano2 languages](https://github-readme-stats.quantumlytangled.vercel.app/api/top-langs/?username=p32929)](https://p32929.github.io/)
 
