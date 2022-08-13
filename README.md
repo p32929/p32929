@@ -34,7 +34,7 @@ Share my portfolio ( https://p32929.github.io/ ) with your friends in just a cli
 [![tumblr](https://user-images.githubusercontent.com/6418354/179013343-3111f55a-3b90-40c7-8487-9777348672b0.png)](https://www.tumblr.com/share?v=3&u=https://p32929.github.io/)
 
 ###### -> Support
-If you like my works and want to support me/my works, feel free to support or donate. My payment details can be found here: https://p32929.github.io/SendMoney2Me/
+If you like my works and want to support me/my works, feel free to support. My payment details can be found here: https://p32929.github.io/SendMoney2Me/
 
 ###### -> Thanks
 Thanks everyone for visiting my profile. If you are enjoying any of my works, whether it be a library or a template or anything, feel free to let me know. All my contact details can be found here: https://p32929.github.io/
