@@ -1,3 +1,9 @@
+<!-- hire-block -->
+###### -> Available for paid work — fixed price, fixed scope
+I build Android, Flutter, React, Electron and Node apps, and I take paid work on my own open-source projects: **drop-in integration $45**, **priority bug fix in 72h $95**, **a custom build from one of my templates $130**, **a full app from $350**. No hourly billing, no surprise scope.
+
+**[See everything and how to buy →](https://p32929.github.io/hire/)** · [Hire via Fiverr](https://www.fiverr.com/fayazbinsalam) (escrow, ID-verified, 5.0★) · [Describe your job](https://github.com/p32929/hire/issues/new) — quotes are free
+
 ###### -> VPS Price Index — live cloud server prices, straight from the providers' APIs
 120 VPS plans from Vultr, Linode, Scaleway and AWS Lightsail, compared by price, RAM, vCPU and $/GB. Not a hand-typed blog table — a script hits each provider's public pricing API and rebuilds it every day.
 
