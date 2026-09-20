@@ -1,3 +1,8 @@
+###### -> ShrinkKit — bulk image compressor that never uploads your photos
+Compress, resize and convert a whole folder of images at once, entirely in your browser. No upload, no signup, strips EXIF/GPS.
+
+**[Try it free →](https://p32929.github.io/shrinkkit/)** · [source](https://github.com/p32929/shrinkkit) · [Pro, $9 one-time](https://p32929.gumroad.com/l/shrinkkit)
+
 ###### -> My portfolio
 https://p32929.github.io/
 
