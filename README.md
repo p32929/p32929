@@ -1,3 +1,8 @@
+###### -> Claude Code Starter Kit — working `.claude/` files, not another tutorial
+Drop-in subagents, slash commands and guard hooks for Claude Code. Blocks `rm -rf /` and `.env` reads, reviews your diff, maps an unfamiliar repo. Every hook tested before it shipped.
+
+**[Get it free →](https://github.com/p32929/claude-code-starter-kit)** · MIT · install in 60 seconds
+
 ###### -> ShrinkKit — bulk image compressor that never uploads your photos
 Compress, resize and convert a whole folder of images at once, entirely in your browser. No upload, no signup, strips EXIF/GPS.
 
