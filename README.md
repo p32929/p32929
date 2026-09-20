@@ -1,3 +1,8 @@
+###### -> VPS Price Index — live cloud server prices, straight from the providers' APIs
+120 VPS plans from Vultr, Linode, Scaleway and AWS Lightsail, compared by price, RAM, vCPU and $/GB. Not a hand-typed blog table — a script hits each provider's public pricing API and rebuilds it every day.
+
+**[Compare them →](https://p32929.github.io/vps-price-index/)** · [source + raw JSON](https://github.com/p32929/vps-price-index) · MIT / CC0
+
 ###### -> Claude Code Starter Kit — working `.claude/` files, not another tutorial
 Drop-in subagents, slash commands and guard hooks for Claude Code. Blocks `rm -rf /` and `.env` reads, reviews your diff, maps an unfamiliar repo. Every hook tested before it shipped.
 
