@@ -16,6 +16,11 @@ Compress, resize and convert a whole folder of images at once, entirely in your 
 ###### -> My portfolio
 https://p32929.github.io/
 
+###### -> Support my work
+These projects are free and MIT-licensed, and I keep them maintained in my own time. If one of them saved you an afternoon, a coffee goes a long way.
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-%E2%98%95-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://www.buymeacoffee.com/p32929)
+
 ###### -> My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)](https://p32929.github.io/) 
 
@@ -47,11 +52,6 @@ Share my portfolio ( https://p32929.github.io/ ) with your friends in just a cli
 [![reddit](https://user-images.githubusercontent.com/6418354/179013338-7416ae3f-73ba-4522-86e1-1374d7082d22.png)](https://www.reddit.com/submit?url=https://p32929.github.io/)
 [![pocket](https://user-images.githubusercontent.com/6418354/179013334-b095c45f-becf-49f4-9ee1-5a731a9b1f85.png)](https://getpocket.com/save?url=https://p32929.github.io/)
 [![tumblr](https://user-images.githubusercontent.com/6418354/179013343-3111f55a-3b90-40c7-8487-9777348672b0.png)](https://www.tumblr.com/share?v=3&u=https://p32929.github.io/)
-
-###### -> Support
-If you like my works and want to support me/my works, feel free to support. My payment details can be found here:
-
-[![buymeacoffee](https://www.buymeacoffee.com/assets/img/guidelines/download-assets-sm-1.svg)](https://www.buymeacoffee.com/p32929)
 
 ###### -> Thanks
 Thanks everyone for visiting my profile. If you are enjoying any of my works, whether it be a library or a template or anything, feel free to let me know. All my contact details can be found here: https://p32929.github.io/
