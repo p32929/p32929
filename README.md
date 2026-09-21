@@ -19,6 +19,11 @@ Compress, resize and convert a whole folder of images at once, entirely in your 
 
 **[Try it free →](https://p32929.github.io/shrinkkit/)** · [source](https://github.com/p32929/shrinkkit) · [Pro, $9 one-time](https://p32929.gumroad.com/l/shrinkkit)
 
+###### -> Blackline — redact a PDF so the text underneath is actually gone
+A black box drawn in Preview or Acrobat only covers the words; they are still in the file and anyone can copy them out. Blackline flattens every page with the boxes burned in, so there is no text left to recover — and it runs entirely in your browser, so the document is never uploaded.
+
+**[Redact one free →](https://p32929.github.io/blackline/)** · [source + the test that proves it](https://github.com/p32929/blackline) · [licences from $39](https://p32929.gumroad.com/l/blackline)
+
 ###### -> My portfolio
 https://p32929.github.io/
 
