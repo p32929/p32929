@@ -32,7 +32,7 @@ These projects are free and MIT-licensed, and I keep them maintained in my own t
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-%E2%98%95-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://www.buymeacoffee.com/p32929)
 
-**Sponsor a mention** — $499 one-time: your name + link in this section for 3 months. **$1,200 one-time:** featured placement at the top of this section, plus a pinned mention on [my X profile](https://x.com/p32929), for 3 months. Pay via the coffee link above (set the quantity) or email **fayazbinsalam@uberip.com** for an invoice.
+**Sponsor a mention** — $499 one-time: your name + link in this section for 3 months. **$1,200 one-time:** featured placement at the top of this section, plus a pinned mention on [my X profile](https://x.com/p32929), for 3 months. Pay via the coffee link above (set the quantity) or email **fayazdevinbox@uberip.com** for an invoice.
 
 ###### -> My Github Stats
 [![](https://github-readme-stats.vercel.app/api?username=p32929&show_icons=true)](https://p32929.github.io/) 
