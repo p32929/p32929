@@ -1,0 +1,72 @@
+[
+  {
+    "name": "TypeScript",
+    "color": "#3178c6",
+    "n": 79
+  },
+  {
+    "name": "JavaScript",
+    "color": "#f1e05a",
+    "n": 36
+  },
+  {
+    "name": "HTML",
+    "color": "#e34c26",
+    "n": 17
+  },
+  {
+    "name": "Python",
+    "color": "#3572A5",
+    "n": 16
+  },
+  {
+    "name": "Dart",
+    "color": "#00B4AB",
+    "n": 9
+  },
+  {
+    "name": "Java",
+    "color": "#b07219",
+    "n": 7
+  },
+  {
+    "name": "Rust",
+    "color": "#dea584",
+    "n": 7
+  },
+  {
+    "name": "C",
+    "color": "#555555",
+    "n": 6
+  },
+  {
+    "name": "Kotlin",
+    "color": "#A97BFF",
+    "n": 6
+  },
+  {
+    "name": "Batchfile",
+    "color": "#C1F12E",
+    "n": 2
+  },
+  {
+    "name": "C++",
+    "color": "#f34b7d",
+    "n": 2
+  },
+  {
+    "name": "AutoHotkey",
+    "color": "#6594b9",
+    "n": 1
+  },
+  {
+    "name": "Swift",
+    "color": "#F05138",
+    "n": 1
+  },
+  {
+    "name": "Shell",
+    "color": "#89e051",
+    "n": 1
+  }
+]

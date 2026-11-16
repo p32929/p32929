@@ -67,6 +67,31 @@ async function github() {
   return { followers: user.followers.totalCount, publicRepos: user.all.totalCount, repos }
 }
 
+// Languages over all own non-fork repos, public and private (counts only).
+// The daily Action's token only sees public repos, so counts made with a token
+// that can see private ones are kept in languages.json and reused then.
+// ponytail: cache refreshes only on a local run; add a PAT secret if it should refresh daily.
+async function languages() {
+  const counts = {}
+  let after = null, sawPrivate = false
+  do {
+    const d = await gqlRetry(`query($after: String) { user(login: "${USER}") {
+      repositories(first: 100, after: $after, ownerAffiliations: OWNER, isFork: false) {
+        pageInfo { hasNextPage endCursor }
+        nodes { isPrivate primaryLanguage { name color } } } } }`, { after })
+    const r = d.user.repositories
+    for (const n of r.nodes) {
+      if (n.isPrivate) sawPrivate = true
+      if (n.primaryLanguage) (counts[n.primaryLanguage.name] ??= { name: n.primaryLanguage.name, color: n.primaryLanguage.color ?? '#888', n: 0 }).n++
+    }
+    after = r.pageInfo.hasNextPage ? r.pageInfo.endCursor : null
+  } while (after)
+  const file = join(ROOT, 'languages.json')
+  const list = Object.values(counts).sort((a, b) => b.n - a.n)
+  if (sawPrivate) { writeFileSync(file, JSON.stringify(list, null, 2) + '\n'); return list }
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : list
+}
+
 // Who is on OpenStore, and how many apps they list together.
 
 // Minimal front matter reader: the keys we need from an OpenStore listing.
@@ -171,14 +196,11 @@ function image(data, x, y, s) {
 }
 const svg = (w, h, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`
 
-// A terminal window: title bar with three dots, then the body.
+// A plain rounded box (no window bar). Callers draw as if a 32px bar sat on top,
+// so the body is shifted up by that much.
+const BAR = 32
 function win(t, w, h, title, body) {
-  return svg(w, h,
-    rect(0.5, 0.5, w - 1, h - 1, 10, t.panel, t.line) +
-    `<path d="M0.5 10.5a10 10 0 0 1 10-10h${w - 21}a10 10 0 0 1 10 10V32.5H0.5z" fill="${t.chrome}"/>` +
-    rect(0.5, 32, w - 1, 1, 0, t.line) +
-    [0, 1, 2].map(i => `<circle cx="${18 + i * 16}" cy="17" r="5" fill="${t.dot}"/>`).join('') +
-    text(w / 2, 21.5, fit(title, 12, w - 140), { size: 12, weight: 500, fill: t.mute, anchor: 'middle' }) + body)
+  return svg(w, h - BAR, rect(0.5, 0.5, w - 1, h - BAR - 1, 10, t.panel, t.line) + `<g transform="translate(0,-${BAR})">${body}</g>`)
 }
 const prompt = (t, x, y, cmd, size = 15) =>
   text(x, y, '$', { size, weight: 700, fill: t.acc }) + text(x + charW(size) * 2, y, cmd, { size, weight: 500, fill: t.ink })
@@ -189,8 +211,8 @@ function hero(t, d) {
   b.push(text(28, 118, 'Fayaz Bin Salam', { size: 38, weight: 700, fill: t.ink }))
   b.push(text(28, 148, 'software engineer, building apps, tools and libraries people use', { size: 14, fill: t.mute }))
   b.push(prompt(t, 28, 196, 'ls ~/work'))
-  b.push(text(28, 224, 'mobile/{android,ios}  web/  desktop/{windows,macos,linux}', { size: 15, weight: 600, fill: t.acc }))
-  b.push(text(28, 250, 'cli/  automation/  extensions/  plugins/', { size: 15, weight: 600, fill: t.acc }))
+  // ls-style columns across the full width, same tab stop for every column
+  WORK.forEach((w, i) => b.push(text(28 + (i % 5) * 166, 224 + Math.floor(i / 5) * 26, `${w}/`, { size: 15, weight: 600, fill: t.acc })))
   b.push(prompt(t, 28, 298, 'gh stats'))
   d.stats.forEach(([n, label], i) => {
     const x = 28 + i * 208
@@ -204,19 +226,21 @@ function hero(t, d) {
     b.push(rect(x.toFixed(1), 384, w.toFixed(1), 6, 3, l.color))
     x += w + gap
   }
-  let lx = 28
+  let lx = 28, ly = 416
   for (const l of d.langs) {
-    const label = `${l.name.toLowerCase()} ${l.n}`
-    b.push(`<circle cx="${lx + 4}" cy="412" r="4" fill="${l.color}"/>`, text(lx + 13, 416, label, { size: 12, fill: t.mute }))
-    lx += 13 + charW(12) * label.length + 18
+    const label = `${l.name.toLowerCase()} ${l.n}`, w = 13 + charW(12) * label.length
+    if (lx + w > W - 28) { lx = 28; ly += 22 }
+    b.push(`<circle cx="${lx + 4}" cy="${ly - 4}" r="4" fill="${l.color}"/>`, text(lx + 13, ly, label, { size: 12, fill: t.mute }))
+    lx += w + 18
   }
-  return win(t, W, 442, `~/${USER}`, b.join(''))
+  return win(t, W, ly + 26, `~/${USER}`, b.join(''))
 }
 
 // Cards sit side by side with no space between images (align=top), so each card
 // carries its own gap: GAP/2 on the left and right, GAP below. Rows and columns
 // then end up exactly GAP apart.
 const GAP = 14
+const WORK = ['android', 'ios', 'web', 'windows', 'macos', 'linux', 'cli', 'automation', 'extensions', 'plugins']
 function cell(card) {
   const [, w, h] = card.match(/^<svg[^>]*width="([\d.]+)" height="([\d.]+)"/)
   const W = +w + GAP, H = +h + GAP
@@ -267,39 +291,29 @@ function linkCard(t, W, title, name, line) {
 }
 
 function joinPanel(t) {
-  const W = 880, b = []
-  b.push(prompt(t, 28, 66, 'openstore join --help'))
-  const steps = [
-    ['copy the template into a new public repo', ''],
-    ['add one .md file per app in apps/', ''],
-    ['check it with', 'node validate.mjs'],
-    ['open a pull request adding your repo to', 'maintainers.yaml'],
-  ]
-  steps.forEach(([say, code], i) => {
-    const y = 100 + i * 28
-    b.push(text(28, y, `[${i + 1}]`, { size: 14, weight: 700, fill: t.acc }))
-    b.push(text(70, y, say, { size: 14, fill: t.ink }))
-    if (code) {
-      const x = 70 + charW(14) * (say.length + 1), w = charW(13) * code.length + 16
-      b.push(rect(x, y - 15, w, 21, 6, t.accSoft), text(x + 8, y, code, { size: 13, weight: 600, fill: t.acc }))
-    }
+  const W = 880, H = 132 + BAR, b = []
+  b.push(text(28, 70, 'Put your own apps on OpenStore', { size: 16, weight: 700, fill: t.ink }))
+  b.push(text(28, 92, 'free, your listing lives in your own repo. just 4 simple steps:', { size: 12.5, fill: t.mute }))
+  const steps = ['copy the template', 'add one .md per app', 'run node validate.mjs', 'open one pull request']
+  steps.forEach((s, i) => {
+    const x = 28 + (i % 2) * 280, y = 124 + Math.floor(i / 2) * 26
+    b.push(text(x, y, `[${i + 1}]`, { size: 13.5, weight: 700, fill: t.acc }), text(x + 38, y, s, { size: 13.5, fill: t.ink }))
   })
-  b.push(text(28, 222, '→ read the guide: openstore.pfay.workers.dev/add', { size: 13, weight: 600, fill: t.acc }))
-  return win(t, W, 246, '~/openstore', b.join(''))
+  const bw = 210, bx = W - 28 - bw, by = BAR + (H - BAR) / 2 - 24
+  b.push(rect(bx, by, bw, 48, 10, t.acc),
+    text(bx + 22, by + 30, 'read the guide', { size: 15, weight: 700, fill: t.panel }),
+    `<path d="M${bx + bw - 44} ${by + 24}h18m-7-7 7 7-7 7" fill="none" stroke="${t.panel}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`)
+  return win(t, W, H, '~/openstore', b.join(''))
 }
 
 // tree ~/apps: one panel built from strips, so every icon can be its own link.
 // The pieces line up because they are placed with align=top and no gaps.
 const TREE = { label: 232, slot: 81, slots: 8, rowH: 62 }
 // Window top and bottom as strips of any width (sides drawn by each row strip).
-function stripTop(t, W, title, H = 46) {
+function stripTop(t, W, title, H = 18) {
   return svg(W, H,
     `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}z" fill="${t.panel}"/>` +
-    `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}" fill="none" stroke="${t.line}"/>` +
-    `<path d="M0.5 10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V32.5H0.5z" fill="${t.chrome}"/>` +
-    rect(0.5, 32, W - 1, 1, 0, t.line) +
-    [0, 1, 2].map(i => `<circle cx="${18 + i * 16}" cy="17" r="5" fill="${t.dot}"/>`).join('') +
-    text(W / 2, 21.5, fit(title, 12, W - 140), { size: 12, weight: 500, fill: t.mute, anchor: 'middle' }))
+    `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}" fill="none" stroke="${t.line}"/>`)
 }
 function stripBottom(t, W, H = 16, body = '') {
   return svg(W, H, `<path d="M0.5 0V${H - 10.5}a10 10 0 0 0 10 10h${W - 21}a10 10 0 0 0 10-10V0" fill="${t.panel}" stroke="${t.line}"/>` + body)
@@ -310,9 +324,9 @@ const strip = (t, W, H, body, left = true, right = true) =>
 
 const TX = 34 // x of the tree trunk
 function treeTop(t) {
-  const W = 880, H = 66
+  const W = 880, H = 40
   return svg(W, H, stripTop(t, W, '~/apps', H).replace(/^<svg[^>]*>|<\/svg>$/g, '') +
-    text(TX - 6, 58, '~/apps', { size: 14, weight: 700, fill: t.ink }) + rect(TX, 62, 1.5, H - 62, 0, t.dot))
+    text(TX - 6, 30, '~/apps', { size: 14, weight: 700, fill: t.ink }) + rect(TX, 34, 1.5, H - 34, 0, t.dot))
 }
 function treeLabel(t, kind, last) {
   const { label: W, rowH: H } = TREE, mid = H / 2
@@ -338,10 +352,7 @@ async function treeSlot(t, a, isLast, more = 0) {
   }
   return strip(t, W, H, body, false, isLast)
 }
-function treeBottom(t, folders, apps) {
-  const W = 880, H = 44
-  return stripBottom(t, W, H, text(TX - 6, 24, `${folders} directories, ${apps} apps`, { size: 12.5, fill: t.mute }))
-}
+const treeBottom = t => stripBottom(t, 880, 18)
 
 // ---------- what's new: three layouts ----------
 
@@ -402,18 +413,20 @@ const bySource = (apps, repo) => apps.find(a => a.source.replace(/\/$/, '').toLo
 const available = a => !Object.values(a.platforms).some(u => u.includes('unavailable'))
 
 // [file name, window title, label, line, link]
+// Footer: share and support, drawn like the other cards.
+const FOOTER = [
+  ['share', '', 'share my profile', 'facebook, x, linkedin, whatsapp and more', 'https://p32929.github.io/share/'],
+  ['support', '', 'support my work', 'if you like my work, feel free. thank you!', 'https://p32929.github.io/support/'],
+]
 const LINKS = [
   ['portfolio', '~/portfolio', 'portfolio', 'everything I have built', 'https://p32929.github.io/'],
   ['openstore', '~/openstore', 'openstore', 'download my apps', STORE_DEV],
-  ['gists', '~/gists', 'gists', 'small snippets and notes', `https://gist.github.com/${USER}`],
 ]
 
 async function main() {
   const [gh, apps] = [await github(), openstore()]
   const own = gh.repos.filter(r => !r.isArchived)
 
-  const langCount = {}
-  for (const r of own) if (r.primaryLanguage) (langCount[r.primaryLanguage.name] ??= { name: r.primaryLanguage.name, color: r.primaryLanguage.color ?? '#888', n: 0 }).n++
   const data = {
     stats: [
       [String(own.reduce((s, r) => s + r.stargazerCount, 0)), 'stars'],
@@ -421,7 +434,7 @@ async function main() {
       [String(gh.followers), 'followers'],
       [String(apps.length), 'apps on OpenStore'],
     ],
-    langs: Object.values(langCount).sort((a, b) => b.n - a.n).slice(0, 7),
+    langs: await languages(),
   }
   const latest = apps.filter(a => available(a) && Object.keys(a.platforms).some(p => p !== 'Library')).slice(0, 4)
   const work = own.filter(r => r.workedAt && r.description && !NOT_WORK.test(r.name))
@@ -456,7 +469,6 @@ async function main() {
   const released = new Set(news.release.map(r => r.name))
   const allNews = [...news.new, ...news.release, ...news.wip.filter(w => !released.has(w.name))].sort((a, b) => Date.parse(b.when) - Date.parse(a.when))
   const timeline = allNews.slice(0, 6)
-  const treeApps = new Set(Object.values(groups).flatMap(g => g.list)).size
 
   rmSync(ASSETS, { recursive: true, force: true })
   mkdirSync(join(ASSETS, 'icons'), { recursive: true })
@@ -467,20 +479,21 @@ async function main() {
     write(`h-fav-${mode}.svg`, heading(t, 'ls ~/favourites'))
     write(`h-new-${mode}.svg`, heading(t, 'whatsnew'))
     write(`h-build-${mode}.svg`, heading(t, 'tree ~/apps'))
-    for (const [name, title, label, line] of LINKS) write(`link-${name}-${mode}.svg`, cell(linkCard(t, ROW / 3 - GAP, title, label, line)))
+    for (const [name, title, label, line] of [...LINKS, ...FOOTER]) write(`link-${name}-${mode}.svg`, cell(linkCard(t, ROW / 2 - GAP, title, label, line)))
+    write(`h-links-${mode}.svg`, heading(t, 'ls ~/links'))
     write(`h-join-${mode}.svg`, heading(t, 'openstore join'))
     write(`join-${mode}.svg`, joinPanel(t))
     for (const f of favs) write(`fav-${f.repo}-${mode}.svg`, cell(await favCard(t, f)))
     write(`tree-top-${mode}.svg`, treeTop(t))
     const kinds = Object.keys(groups)
-    write(`tree-bottom-${mode}.svg`, treeBottom(t, kinds.length, treeApps))
+    write(`tree-bottom-${mode}.svg`, treeBottom(t))
     for (const [i, kind] of kinds.entries()) {
       const { n, list } = groups[kind]
       write(`tree-${kind}-${mode}.svg`, treeLabel(t, kind, i === kinds.length - 1))
       const more = n > TREE.slots ? n - (TREE.slots - 1) : 0
       for (let k = 0; k < TREE.slots; k++) write(`tree-${kind}-${k}-${mode}.svg`, await treeSlot(t, list[k], k === TREE.slots - 1, more && k === TREE.slots - 1 ? more : 0))
     }
-      write(`wn-top-${mode}.svg`, stripTop(t, 880, '~/timeline', 50))
+      write(`wn-top-${mode}.svg`, stripTop(t, 880, '', 18))
       for (const [i, it] of timeline.entries()) write(`wn-${i}-${mode}.svg`, await wnRowC(t, mode, it, i, timeline.length))
       write(`wn-bottom-${mode}.svg`, stripBottom(t, 880, 18))
   }
@@ -509,7 +522,8 @@ async function main() {
   const md = [
     '<!-- This file is made by scripts/build.mjs every day. Edit the script, not this file. -->',
     link('https://p32929.github.io/', pic('hero', 'Fayaz Bin Salam, software engineer', '100%')),
-    `<p>${tight(LINKS, 3, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, pct(ROW / 3, ROW), 'top')))}</p>`,
+    link('https://p32929.github.io/', pic('h-links', 'Links', '100%')),
+    `<p>${tight(LINKS, 2, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, '50%', 'top')))}</p>`,
     link(STORE_DEV, pic('h-fav', 'My favourite projects', '100%')),
     `<p>${tight(favs, 2, f => link(f.href, pic(`fav-${f.repo}`, `${f.title}: ${f.summary}`, '50%', 'top')))}</p>`,
     link(STORE_DEV, pic('h-build', 'What I build', '100%')),
@@ -518,7 +532,7 @@ async function main() {
     whatsNewMd(),
     link('https://openstore.pfay.workers.dev/add', pic('h-join', 'Put your own apps on OpenStore', '100%')),
     link('https://openstore.pfay.workers.dev/add', pic('join', 'How to put your apps on OpenStore: 4 steps', '100%')),
-    '<p>\n<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>\n<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>\n</p>',
+    `<p>${tight(FOOTER, 2, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, '50%', 'top')))}</p>`,
   ].join('\n\n') + '\n'
   writeFileSync(join(ROOT, 'README.md'), md)
   console.log(`favourites: ${favs.map(f => f.title).join(', ')}\nlatest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}\ngroups: ${Object.entries(groups).map(([k, g]) => `${k}=${g.n}`).join(' ')}`)
