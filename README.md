@@ -2,7 +2,11 @@
 
 <a href="https://p32929.github.io/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg"><img src="assets/hero-light.svg" width="100%" alt="Fayaz Bin Salam, software engineer"></picture></a>
 
-<p align="center"><a href="https://p32929.github.io/">Portfolio</a> · <a href="https://openstore.pfay.workers.dev/dev/p32929">OpenStore</a> · <a href="https://gist.github.com/p32929">Gists</a></p>
+<p>
+<a href="https://p32929.github.io/"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/link-portfolio-dark.svg"><img src="assets/link-portfolio-light.svg" width="32.5%" alt="portfolio"></picture></a>
+<a href="https://openstore.pfay.workers.dev/dev/p32929"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/link-openstore-dark.svg"><img src="assets/link-openstore-light.svg" width="32.5%" alt="openstore"></picture></a>
+<a href="https://gist.github.com/p32929"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/link-gists-dark.svg"><img src="assets/link-gists-light.svg" width="32.5%" alt="gists"></picture></a>
+</p>
 
 <a href="https://openstore.pfay.workers.dev/dev/p32929"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/h-apps-dark.svg"><img src="assets/h-apps-light.svg" width="100%" alt="Latest apps"></picture></a>
 
@@ -76,6 +80,19 @@
 <a href="https://openstore.pfay.workers.dev/app/p32929/obsidotion"><img src="assets/icons/obsidotion.svg" width="48" height="48" alt="obsidotion" title="obsidotion"></a>
 <a href="https://openstore.pfay.workers.dev/app/p32929/one-console-log"><img src="assets/icons/one-console-log.svg" width="48" height="48" alt="one console log" title="one console log"></a>
 <a href="https://openstore.pfay.workers.dev/app/p32929/vscode-nvim-leave-insertmode"><img src="assets/icons/vscode-nvim-leave-insertmode.svg" width="48" height="48" alt="vscode nvim leave insertmode" title="vscode nvim leave insertmode"></a>
+</p>
+
+<a href="https://openstore.pfay.workers.dev/add"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/h-join-dark.svg"><img src="assets/h-join-light.svg" width="100%" alt="Put your own apps on OpenStore"></picture></a>
+
+<a href="https://openstore.pfay.workers.dev/add"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/join-dark.svg"><img src="assets/join-light.svg" width="100%" alt="Ship your apps on OpenStore: 1 developers, 76 apps"></picture></a>
+
+<p>
+<a href="https://openstore.pfay.workers.dev/add"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/act-guide-dark.svg"><img src="assets/act-guide-light.svg" width="49%" alt="read the guide"></picture></a>
+<a href="https://github.com/p32929/p32929_openstore/tree/template"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/act-template-dark.svg"><img src="assets/act-template-light.svg" width="49%" alt="use the template"></picture></a>
+</p>
+<p>
+<a href="https://github.com/p32929/openstore_maintainers"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/act-join-dark.svg"><img src="assets/act-join-light.svg" width="49%" alt="add yourself"></picture></a>
+<a href="https://openstore.pfay.workers.dev/why"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/act-why-dark.svg"><img src="assets/act-why-light.svg" width="49%" alt="why openstore"></picture></a>
 </p>
 
 <p>

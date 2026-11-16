@@ -67,6 +67,18 @@ async function github() {
   return { followers: user.followers.totalCount, publicRepos: user.all.totalCount, repos }
 }
 
+// Who is on OpenStore, and how many apps they list together.
+async function storeCounts() {
+  const yaml = await (await fetch('https://raw.githubusercontent.com/p32929/openstore_maintainers/main/maintainers.yaml')).text()
+  const repos = [...yaml.matchAll(/^-\s*([\w.-]+\/[\w.-]+)\s*$/gm)].map(m => m[1])
+  let apps = 0
+  for (const r of repos) {
+    const res = await fetch(`https://api.github.com/repos/${r}/contents/apps`, { headers: { Authorization: `bearer ${TOKEN}` } })
+    if (res.ok) apps += (await res.json()).filter(f => f.name.endsWith('.md')).length
+  }
+  return { developers: repos.length, apps }
+}
+
 // Minimal front matter reader: the keys we need from an OpenStore listing.
 function listing(text) {
   const fm = text.split(/^---$/m)[1] ?? ''
@@ -242,6 +254,42 @@ function releaseCard(t, r) {
     text(W - 20, 89.5, date(r.latestRelease.publishedAt), { size: 12, fill: t.mute, anchor: 'end' }))
 }
 
+// A small linked card: title bar, bold name, one line, an arrow button.
+function linkCard(t, W, title, name, line) {
+  const H = 100
+  return win(t, W, H, title,
+    text(20, 62, fit(name, 15, W - 96), { size: 15, weight: 700, fill: t.ink }) +
+    text(20, 84, fit(line, 12, W - 96), { size: 12, fill: t.mute }) +
+    rect(W - 64, 52, 44, 30, 8, t.acc) +
+    `<path d="M${W - 50} 67h16m-6-6 6 6-6 6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`)
+}
+
+function joinPanel(t, c) {
+  const W = 880, b = []
+  b.push(text(28, 76, 'Ship your apps on OpenStore', { size: 28, weight: 700, fill: t.ink }))
+  b.push(text(28, 104, 'free · your listing lives in your own repo · no review queue', { size: 14, fill: t.mute }))
+  b.push(prompt(t, 28, 148, 'openstore join --help'))
+  const steps = [
+    ['copy the template into a new public repo', ''],
+    ['add one .md file per app in apps/', ''],
+    ['check it', 'node validate.mjs'],
+    ['open a pull request adding your repo to', 'maintainers.yaml'],
+  ]
+  steps.forEach(([say, code], i) => {
+    const y = 182 + i * 28
+    b.push(text(28, y, `[${i + 1}]`, { size: 14, weight: 700, fill: t.acc }))
+    b.push(text(70, y, say, { size: 14, fill: t.ink }))
+    if (code) {
+      const x = 70 + charW(14) * (say.length + 1), w = charW(13) * code.length + 16
+      b.push(rect(x, y - 15, w, 21, 6, t.accSoft), text(x + 8, y, code, { size: 13, weight: 600, fill: t.acc }))
+    }
+  })
+  b.push(rect(28, 296, 824, 1, 0, t.line))
+  b.push(text(28, 326, '✓', { size: 14, weight: 700, fill: t.acc }))
+  b.push(text(48, 326, `${c.developers < 10 ? 'be one of the first developers' : `${c.developers} developers`} · ${c.apps} apps already listed · then just push to your repo`, { size: 13, fill: t.mute }))
+  return win(t, W, 350, '~/openstore', b.join(''))
+}
+
 async function iconTile(a) {
   const data = await iconData(a.icon)
   return data ? svg(56, 56, image(data, 2, 2, 52)) : null
@@ -253,8 +301,21 @@ const KIND = { Android: 'android', iOS: 'ios', Web: 'web', Windows: 'desktop', M
 const ORDER = ['android', 'web', 'desktop', 'cli', 'extensions']
 const available = a => !Object.values(a.platforms).some(u => u.includes('unavailable'))
 
+// [file name, window title, label, line, link]
+const LINKS = [
+  ['portfolio', '~/portfolio', 'portfolio', 'everything I have built', 'https://p32929.github.io/'],
+  ['openstore', '~/openstore', 'openstore', 'download my apps', STORE_DEV],
+  ['gists', '~/gists', 'gists', 'small snippets and notes', `https://gist.github.com/${USER}`],
+]
+const ACTIONS = [
+  ['guide', '~/guide', 'read the guide', 'step by step, with examples', 'https://openstore.pfay.workers.dev/add'],
+  ['template', '~/template', 'use the template', 'copy it and add your apps', 'https://github.com/p32929/p32929_openstore/tree/template'],
+  ['join', '~/maintainers', 'add yourself', 'one line in maintainers.yaml', 'https://github.com/p32929/openstore_maintainers'],
+  ['why', '~/why', 'why openstore', 'no fees, no review queue, yours', 'https://openstore.pfay.workers.dev/why'],
+]
+
 async function main() {
-  const [gh, apps] = [await github(), openstore()]
+  const [gh, apps, counts] = [await github(), openstore(), await storeCounts()]
   const own = gh.repos.filter(r => !r.isArchived)
 
   const langCount = {}
@@ -292,6 +353,10 @@ async function main() {
     write(`h-work-${mode}.svg`, heading(t, 'git log --recent'))
     write(`h-releases-${mode}.svg`, heading(t, 'gh release list'))
     write(`h-build-${mode}.svg`, heading(t, 'tree ~/apps'))
+    for (const [name, title, label, line] of LINKS) write(`link-${name}-${mode}.svg`, linkCard(t, 282, title, label, line))
+    write(`h-join-${mode}.svg`, heading(t, 'openstore join'))
+    write(`join-${mode}.svg`, joinPanel(t, counts))
+    for (const [name, title, label, line] of ACTIONS) write(`act-${name}-${mode}.svg`, linkCard(t, 430, title, label, line))
     for (const a of latest) write(`app-${a.slug}-${mode}.svg`, await appCard(t, a))
     for (const r of work) write(`repo-${r.name}-${mode}.svg`, repoCard(t, r))
     for (const r of releases) write(`release-${r.name}-${mode}.svg`, releaseCard(t, r))
@@ -315,7 +380,7 @@ async function main() {
   const md = [
     '<!-- This file is made by scripts/build.mjs every day. Edit the script, not this file. -->',
     link('https://p32929.github.io/', pic('hero', 'Fayaz Bin Salam, software engineer', '100%')),
-    `<p align="center"><a href="https://p32929.github.io/">Portfolio</a> · <a href="${STORE_DEV}">OpenStore</a> · <a href="https://gist.github.com/${USER}">Gists</a></p>`,
+    `<p>\n${LINKS.map(([n, , label, , href]) => link(href, pic(`link-${n}`, label, '32.5%'))).join('\n')}\n</p>`,
     link(STORE_DEV, pic('h-apps', 'Latest apps', '100%')),
     rows(latest, 2, a => link(STORE_APP(a.slug), pic(`app-${a.slug}`, `${a.title}: ${a.summary}`, '49%'))),
     link(`https://github.com/${USER}?tab=repositories&sort=updated`, pic('h-work', 'Recently working on', '100%')),
@@ -325,6 +390,9 @@ async function main() {
     link(STORE_DEV, pic('h-build', 'What I build', '100%')),
     Object.entries(groups).map(([kind, list]) =>
       `<p><code>${kind}/</code><br>\n${list.filter(a => tiles.has(a.slug)).map(a => link(STORE_APP(a.slug), `<img src="assets/icons/${a.slug}.svg" width="48" height="48" alt="${esc(a.title)}" title="${esc(a.title)}">`)).join('\n')}\n</p>`).join('\n\n'),
+    link('https://openstore.pfay.workers.dev/add', pic('h-join', 'Put your own apps on OpenStore', '100%')),
+    link('https://openstore.pfay.workers.dev/add', pic('join', `Ship your apps on OpenStore: ${counts.developers} developers, ${counts.apps} apps`, '100%')),
+    `<p>\n${ACTIONS.map(([n, , label, , href], i) => link(href, pic(`act-${n}`, label, '49%')) + (i === 1 ? '\n</p>\n<p>' : '')).join('\n')}\n</p>`,
     '<p>\n<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>\n<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>\n</p>',
   ].join('\n\n') + '\n'
   writeFileSync(join(ROOT, 'README.md'), md)
