@@ -24,7 +24,7 @@ const HOUSEKEEPING = /^(README|docs?[:(]|chore: refresh|Update README|Add files 
 // ---------- data ----------
 
 async function gql(query, variables = {}) {
-  const res = await fetch('https://api.github.com/graphql', {
+  const res = await fetch('https://api.github.com/graphql', { signal: AbortSignal.timeout(60000),
     method: 'POST',
     headers: { Authorization: `bearer ${TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
@@ -68,16 +68,6 @@ async function github() {
 }
 
 // Who is on OpenStore, and how many apps they list together.
-async function storeCounts() {
-  const yaml = await (await fetch('https://raw.githubusercontent.com/p32929/openstore_maintainers/main/maintainers.yaml')).text()
-  const repos = [...yaml.matchAll(/^-\s*([\w.-]+\/[\w.-]+)\s*$/gm)].map(m => m[1])
-  let apps = 0
-  for (const r of repos) {
-    const res = await fetch(`https://api.github.com/repos/${r}/contents/apps`, { headers: { Authorization: `bearer ${TOKEN}` } })
-    if (res.ok) apps += (await res.json()).filter(f => f.name.endsWith('.md')).length
-  }
-  return { developers: repos.length, apps }
-}
 
 // Minimal front matter reader: the keys we need from an OpenStore listing.
 function listing(text) {
@@ -86,7 +76,7 @@ function listing(text) {
   const platforms = {}
   const block = fm.split(/^platforms:\s*$/m)[1] ?? ''
   for (const m of block.matchAll(/^  ([A-Za-z]+):\s*(\S*)/gm)) platforms[m[1]] = m[2]
-  return { title: get('title'), summary: get('summary'), icon: get('icon'), platforms }
+  return { title: get('title'), summary: get('summary'), icon: get('icon'), source: get('source'), platforms }
 }
 
 function openstore() {
@@ -122,11 +112,11 @@ function openstore() {
 const iconCache = {}
 async function iconData(icon) {
   if (icon in iconCache) return iconCache[icon]
-  const raw = `raw.githubusercontent.com/${STORE_REPO}/main/${icon}`
+  const raw = /^https?:/.test(icon) ? icon.replace(/^https?:\/\//, '') : `raw.githubusercontent.com/${STORE_REPO}/main/${icon}`
   let data = null
   for (const url of [`https://wsrv.nl/?url=${raw}&w=128&h=128&fit=contain&output=png`, `https://${raw}`]) {
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
       if (!res.ok) continue
       const type = res.headers.get('content-type') ?? 'image/png'
       data = `data:${type.split(';')[0]};base64,${Buffer.from(await res.arrayBuffer()).toString('base64')}`
@@ -193,66 +183,89 @@ function hero(t, d) {
   b.push(text(28, 118, 'Fayaz Bin Salam', { size: 38, weight: 700, fill: t.ink }))
   b.push(text(28, 148, 'software engineer, building apps, tools and libraries people use', { size: 14, fill: t.mute }))
   b.push(prompt(t, 28, 196, 'ls ~/work'))
-  b.push(text(28, 224, 'android/  web/  desktop/  cli/  extensions/', { size: 15, weight: 600, fill: t.acc }))
-  b.push(prompt(t, 28, 272, 'gh stats'))
+  b.push(text(28, 224, 'mobile/{android,ios}  web/  desktop/{windows,macos,linux}', { size: 15, weight: 600, fill: t.acc }))
+  b.push(text(28, 250, 'cli/  automation/  extensions/  plugins/', { size: 15, weight: 600, fill: t.acc }))
+  b.push(prompt(t, 28, 298, 'gh stats'))
   d.stats.forEach(([n, label], i) => {
     const x = 28 + i * 208
-    b.push(text(x, 312, n, { size: 30, weight: 700, fill: t.ink }), text(x, 334, label, { size: 13, fill: t.mute }))
+    b.push(text(x, 338, n, { size: 30, weight: 700, fill: t.ink }), text(x, 360, label, { size: 13, fill: t.mute }))
   })
   // Language bar and legend.
   const total = d.langs.reduce((s, l) => s + l.n, 0), gap = 4, usable = 824 - gap * (d.langs.length - 1)
   let x = 28
   for (const l of d.langs) {
     const w = usable * l.n / total
-    b.push(rect(x.toFixed(1), 358, w.toFixed(1), 6, 3, l.color))
+    b.push(rect(x.toFixed(1), 384, w.toFixed(1), 6, 3, l.color))
     x += w + gap
   }
   let lx = 28
   for (const l of d.langs) {
     const label = `${l.name.toLowerCase()} ${l.n}`
-    b.push(`<circle cx="${lx + 4}" cy="386" r="4" fill="${l.color}"/>`, text(lx + 13, 390, label, { size: 12, fill: t.mute }))
+    b.push(`<circle cx="${lx + 4}" cy="412" r="4" fill="${l.color}"/>`, text(lx + 13, 416, label, { size: 12, fill: t.mute }))
     lx += 13 + charW(12) * label.length + 18
   }
-  return win(t, W, 416, `~/${USER}`, b.join(''))
+  return win(t, W, 442, `~/${USER}`, b.join(''))
 }
+
+// Cards sit side by side with no space between images (align=top), so each card
+// carries its own gap: GAP/2 on the left and right, GAP below. Rows and columns
+// then end up exactly GAP apart.
+const GAP = 14
+function cell(card) {
+  const [, w, h] = card.match(/^<svg[^>]*width="([\d.]+)" height="([\d.]+)"/)
+  const W = +w + GAP, H = +h + GAP
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><g transform="translate(${GAP / 2},0)">${card.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')}</g></svg>`
+}
+const ROW = 880 + GAP // a full row of cells, in the same units as the cards
 
 // Section heading: a prompt line on its own.
 const heading = (t, cmd) => svg(880, 40, prompt(t, 4, 26, cmd, 16))
 
-async function appCard(t, a) {
-  const W = 430, H = 118
-  const lines = wrap(a.summary, 12.5, W - 104, 2)
-  return win(t, W, H, a.slug,
-    image(await iconData(a.icon), 20, 48, 52) +
-    text(88, 64, fit(a.title, 15, W - 104), { size: 15, weight: 700, fill: t.ink }) +
-    lines.map((l, i) => text(88, 86 + i * 18, l, { size: 12.5, fill: t.mute })).join(''))
+// A short tag for the best selling point.
+function pill(t, xRight, y, label) {
+  const w = charW(11.5) * label.length + 16
+  return { w, svg: rect(xRight - w, y, w, 20, 10, t.accSoft) + text(xRight - w + 8, y + 14, label, { size: 11.5, weight: 600, fill: t.acc }) }
 }
+
+// Monogram when there is no app icon.
+const mono = (t, s, x, y, size) =>
+  rect(x, y, size, size, size * 0.22, t.accSoft) +
+  text(x + size / 2, y + size * 0.66, s.charAt(0).toUpperCase(), { size: size * 0.5, weight: 700, fill: t.acc, anchor: 'middle' })
+
+async function favCard(t, f) {
+  const W = ROW / 2 - GAP, H = 92
+  const p = pill(t, W - 18, 18, f.pill)
+  const lines = wrap(f.summary, 12.5, W - 106, 2)
+  return svg(W, H,
+    rect(0.5, 0.5, W - 1, H - 1, 10, t.panel, t.line) +
+    image(await iconData(f.icon), 18, 20, 52) + p.svg +
+    text(86, 34, fit(f.title, 15, W - 106 - p.w - 8), { size: 15, weight: 700, fill: t.ink }) +
+    lines.map((l, i) => text(86, 58 + i * 18, l, { size: 12.5, fill: t.mute })).join(''))
+}
+
+// One compact row in "what's new": icon, name, one line, and a date or tag on the right.
+async function miniCard(t, { icon, name, sub, meta, tag }) {
+  const W = ROW / 3 - GAP, H = 66
+  const data = icon ? await iconData(icon) : null
+  const metaW = tag ? charW(11.5) * tag.length + 16 : charW(11.5) * meta.length
+  const x = 62
+  return svg(W, H,
+    rect(0.5, 0.5, W - 1, H - 1, 10, t.panel, t.line) +
+    (data ? image(data, 14, 15, 36) : mono(t, name, 14, 15, 36)) +
+    text(x, 30, fit(name, 13.5, W - x - 14 - metaW - 8), { size: 13.5, weight: 700, fill: t.ink }) +
+    text(x, 49, fit(sub, 11.5, W - x - 14), { size: 11.5, fill: t.mute }) +
+    (tag ? pill(t, W - 14, 15, tag).svg : text(W - 14, 30, meta, { size: 11.5, fill: t.mute, anchor: 'end' })))
+}
+
+// Group label inside "what's new".
+const label = (t, s) => svg(ROW, 28, text(GAP / 2 + 2, 19, `# ${s}`, { size: 13, weight: 600, fill: t.mute }))
 
 const ago = iso => {
   const days = Math.floor((Date.now() - Date.parse(iso)) / 864e5)
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : days < 365 ? `${Math.floor(days / 30)} months ago` : `${Math.floor(days / 365)} years ago`
 }
 const date = iso => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-
-function repoCard(t, r) {
-  const W = 282, H = 150
-  const lines = wrap(r.description ?? '', 12, W - 40, 3)
-  const lang = r.primaryLanguage
-  return win(t, W, H, `~/${r.name}`,
-    text(20, 60, fit(r.name, 15, W - 40), { size: 15, weight: 700, fill: t.ink }) +
-    lines.map((l, i) => text(20, 82 + i * 17, l, { size: 12, fill: t.mute })).join('') +
-    (lang ? `<circle cx="24" cy="134" r="4" fill="${lang.color ?? t.mute}"/>` + text(33, 138, fit(lang.name.toLowerCase(), 12, 90), { size: 12, fill: t.mute }) : '') +
-    text(W - 20, 138, ago(r.workedAt), { size: 12, fill: t.mute, anchor: 'end' }))
-}
-
-function releaseCard(t, r) {
-  const W = 282, H = 104
-  const tag = fit(r.latestRelease.tagName, 13, 110), tagW = charW(13) * tag.length + 18
-  return win(t, W, H, 'gh release view',
-    text(20, 62, fit(r.name, 15, W - 40), { size: 15, weight: 700, fill: t.ink }) +
-    rect(20, 74, tagW, 22, 11, t.accSoft) + text(29, 89.5, tag, { size: 13, weight: 700, fill: t.acc }) +
-    text(W - 20, 89.5, date(r.latestRelease.publishedAt), { size: 12, fill: t.mute, anchor: 'end' }))
-}
+const shortAgo = iso => ago(iso).replace(/ days ago$/, 'd ago').replace(/ months ago$/, 'mo ago').replace(/ years ago$/, 'y ago')
 
 // A small linked card: title bar, bold name, one line, an arrow button.
 function linkCard(t, W, title, name, line) {
@@ -264,19 +277,17 @@ function linkCard(t, W, title, name, line) {
     `<path d="M${W - 50} 67h16m-6-6 6 6-6 6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`)
 }
 
-function joinPanel(t, c) {
+function joinPanel(t) {
   const W = 880, b = []
-  b.push(text(28, 76, 'Ship your apps on OpenStore', { size: 28, weight: 700, fill: t.ink }))
-  b.push(text(28, 104, 'free · your listing lives in your own repo · no review queue', { size: 14, fill: t.mute }))
-  b.push(prompt(t, 28, 148, 'openstore join --help'))
+  b.push(prompt(t, 28, 66, 'openstore join --help'))
   const steps = [
     ['copy the template into a new public repo', ''],
     ['add one .md file per app in apps/', ''],
-    ['check it', 'node validate.mjs'],
+    ['check it with', 'node validate.mjs'],
     ['open a pull request adding your repo to', 'maintainers.yaml'],
   ]
   steps.forEach(([say, code], i) => {
-    const y = 182 + i * 28
+    const y = 100 + i * 28
     b.push(text(28, y, `[${i + 1}]`, { size: 14, weight: 700, fill: t.acc }))
     b.push(text(70, y, say, { size: 14, fill: t.ink }))
     if (code) {
@@ -284,21 +295,62 @@ function joinPanel(t, c) {
       b.push(rect(x, y - 15, w, 21, 6, t.accSoft), text(x + 8, y, code, { size: 13, weight: 600, fill: t.acc }))
     }
   })
-  b.push(rect(28, 296, 824, 1, 0, t.line))
-  b.push(text(28, 326, '✓', { size: 14, weight: 700, fill: t.acc }))
-  b.push(text(48, 326, `${c.developers < 10 ? 'be one of the first developers' : `${c.developers} developers`} · ${c.apps} apps already listed · then just push to your repo`, { size: 13, fill: t.mute }))
-  return win(t, W, 350, '~/openstore', b.join(''))
+  b.push(text(28, 222, '→ read the guide: openstore.pfay.workers.dev/add', { size: 13, weight: 600, fill: t.acc }))
+  return win(t, W, 246, '~/openstore', b.join(''))
 }
 
-async function iconTile(a) {
-  const data = await iconData(a.icon)
-  return data ? svg(56, 56, image(data, 2, 2, 52)) : null
+// tree ~/apps: one panel built from strips, so every icon can be its own link.
+// The pieces line up because they are placed with align=top and no gaps.
+const TREE = { label: 220, slot: 82.5, slots: 8, rowH: 64 }
+function treeTop(t) {
+  const W = 880, H = 64
+  return svg(W, H,
+    `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}z" fill="${t.panel}"/>` +
+    `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}" fill="none" stroke="${t.line}"/>` +
+    `<path d="M0.5 10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V32.5H0.5z" fill="${t.chrome}"/>` +
+    rect(0.5, 32, W - 1, 1, 0, t.line) +
+    [0, 1, 2].map(i => `<circle cx="${18 + i * 16}" cy="17" r="5" fill="${t.dot}"/>`).join('') +
+    text(W / 2, 21.5, '~/apps', { size: 12, weight: 500, fill: t.mute, anchor: 'middle' }) +
+    text(28, 56, '~/apps', { size: 14, weight: 700, fill: t.ink }) + rect(36, 60, 1.5, H - 60, 0, t.dot) +
+    '')
 }
+function treeLabel(t, kind, n, last) {
+  const { label: W, rowH: H } = TREE, x = 36, mid = H / 2
+  return svg(W, H,
+    rect(0, 0, W, H, 0, t.panel) + rect(0, 0, 1, H, 0, t.line) +
+    rect(x, 0, 1.5, last ? mid : H, 0, t.dot) + rect(x, mid - 0.75, 20, 1.5, 0, t.dot) +
+    text(x + 28, mid + 5, `${kind}/`, { size: 14, weight: 700, fill: t.acc }) +
+    text(x + 28 + charW(14) * (kind.length + 1) + 8, mid + 5, String(n), { size: 12, fill: t.mute }))
+}
+async function treeSlot(t, a, isLast) {
+  const { slot: W, rowH: H } = TREE, s = 44
+  const data = a ? await iconData(a.icon) : null
+  return svg(W, H,
+    rect(0, 0, W, H, 0, t.panel) + (isLast ? rect(W - 1, 0, 1, H, 0, t.line) : '') +
+    (data ? image(data, (W - s) / 2, (H - s) / 2, s) : ''))
+}
+function treeBottom(t) {
+  const W = 880, H = 16
+  return svg(W, H, `<path d="M0.5 0V${H - 10.5}a10 10 0 0 0 10 10h${W - 21}a10 10 0 0 0 10-10V0" fill="${t.panel}" stroke="${t.line}"/>`)
+}
+
 
 // ---------- page ----------
 
-const KIND = { Android: 'android', iOS: 'ios', Web: 'web', Windows: 'desktop', MacOS: 'desktop', CLI: 'cli', Library: 'libraries', Extension: 'extensions' }
-const ORDER = ['android', 'web', 'desktop', 'cli', 'extensions']
+const KIND = { Android: 'android', iOS: 'ios', Web: 'web', Windows: 'desktop', MacOS: 'desktop', Linux: 'desktop', CLI: 'cli', Automation: 'automation', Library: 'libraries', Extension: 'extensions' }
+const ORDER = ['android', 'ios', 'web', 'desktop', 'cli', 'automation', 'extensions', 'plugins']
+// An Extension listing that calls itself a plugin (Obsidian and the like) goes under plugins/.
+const kindsOf = a => new Set(Object.keys(a.platforms).map(p => p === 'Extension' && /plugin/i.test(`${a.title} ${a.summary}`) ? 'plugins' : KIND[p]).filter(Boolean))
+// Selling points we have checked; anything else shows where it runs.
+const PILLS = { rotato: 'zero deps', opencc: 'zero deps', hopper: 'zero deps', HeartCode: 'zero deps', cccsss: 'zero deps', lantern: 'self-hosted', ghcdn: 'self-hosted', notes: 'offline', roxaruu: 'keyboard-first', oaifai: 'ubuntu server' }
+function platformPill(a) {
+  const keys = Object.keys(a.platforms), kinds = [...new Set(keys.map(p => KIND[p]).filter(Boolean))]
+  if (kinds.length >= 3) return 'cross-platform'
+  if (keys.length === 1 && keys[0] === 'MacOS') return 'macOS'
+  return kinds.join(' · ')
+}
+const OPENSTORE_FAV = { title: 'OpenStore', summary: 'The open app store where your listing lives in your own repo. No fees, no review queue.', icon: 'https://openstore.pfay.workers.dev/favicon.svg', href: 'https://openstore.pfay.workers.dev', pill: 'free' }
+const bySource = (apps, repo) => apps.find(a => a.source.replace(/\/$/, '').toLowerCase() === `https://github.com/${USER}/${repo}`.toLowerCase())
 const available = a => !Object.values(a.platforms).some(u => u.includes('unavailable'))
 
 // [file name, window title, label, line, link]
@@ -307,15 +359,9 @@ const LINKS = [
   ['openstore', '~/openstore', 'openstore', 'download my apps', STORE_DEV],
   ['gists', '~/gists', 'gists', 'small snippets and notes', `https://gist.github.com/${USER}`],
 ]
-const ACTIONS = [
-  ['guide', '~/guide', 'read the guide', 'step by step, with examples', 'https://openstore.pfay.workers.dev/add'],
-  ['template', '~/template', 'use the template', 'copy it and add your apps', 'https://github.com/p32929/p32929_openstore/tree/template'],
-  ['join', '~/maintainers', 'add yourself', 'one line in maintainers.yaml', 'https://github.com/p32929/openstore_maintainers'],
-  ['why', '~/why', 'why openstore', 'no fees, no review queue, yours', 'https://openstore.pfay.workers.dev/why'],
-]
 
 async function main() {
-  const [gh, apps, counts] = [await github(), openstore(), await storeCounts()]
+  const [gh, apps] = [await github(), openstore()]
   const own = gh.repos.filter(r => !r.isArchived)
 
   const langCount = {}
@@ -334,13 +380,21 @@ async function main() {
     .sort((a, b) => Date.parse(b.workedAt) - Date.parse(a.workedAt)).slice(0, 3)
   const releases = own.filter(r => r.latestRelease && !NOT_WORK.test(r.name))
     .sort((a, b) => Date.parse(b.latestRelease.publishedAt) - Date.parse(a.latestRelease.publishedAt)).slice(0, 3)
+  const favRepos = existsSync(join(ROOT, 'favourites.json')) ? JSON.parse(readFileSync(join(ROOT, 'favourites.json'), 'utf8')) : []
+  const favs = favRepos.map(repo => {
+    if (repo === 'p32929_openstore') return { repo, ...OPENSTORE_FAV }
+    const a = bySource(apps, repo)
+    if (!a) { console.warn(`favourite ${repo} is not on OpenStore, skipped`); return null }
+    return { repo, title: a.title, summary: a.summary, icon: a.icon, href: STORE_APP(a.slug), pill: PILLS[repo] ?? platformPill(a) }
+  }).filter(Boolean).sort((x, y) => x.title.localeCompare(y.title, 'en', { sensitivity: 'base', numeric: true }))
+  const newApps = latest.slice(0, 3)
   const featured = existsSync(join(ROOT, 'featured.json')) ? JSON.parse(readFileSync(join(ROOT, 'featured.json'), 'utf8')) : {}
   const groups = {}
   for (const kind of ORDER) {
     const pinned = (featured[kind] ?? []).map(s => apps.find(a => a.slug === s)).filter(Boolean)
-    const rest = apps.filter(a => available(a) && Object.keys(a.platforms).some(p => KIND[p] === kind) && !pinned.includes(a))
-    const list = [...pinned, ...rest].slice(0, 6)
-    if (list.length) groups[kind] = list
+    const rest = apps.filter(a => available(a) && kindsOf(a).has(kind) && !pinned.includes(a))
+    const all = [...pinned, ...rest]
+    if (all.length) groups[kind] = { n: all.length, list: all.slice(0, TREE.slots) }
   }
 
   rmSync(ASSETS, { recursive: true, force: true })
@@ -349,27 +403,34 @@ async function main() {
   for (const [mode, t] of Object.entries(THEMES)) {
     clipId = 0
     write(`hero-${mode}.svg`, hero(t, data))
-    write(`h-apps-${mode}.svg`, heading(t, `openstore latest --limit ${latest.length}`))
-    write(`h-work-${mode}.svg`, heading(t, 'git log --recent'))
-    write(`h-releases-${mode}.svg`, heading(t, 'gh release list'))
+    write(`h-fav-${mode}.svg`, heading(t, 'ls ~/favourites'))
+    write(`h-new-${mode}.svg`, heading(t, 'whatsnew'))
+    write(`l-apps-${mode}.svg`, label(t, 'new on openstore'))
+    write(`l-releases-${mode}.svg`, label(t, 'new releases'))
+    write(`l-work-${mode}.svg`, label(t, 'working on'))
     write(`h-build-${mode}.svg`, heading(t, 'tree ~/apps'))
-    for (const [name, title, label, line] of LINKS) write(`link-${name}-${mode}.svg`, linkCard(t, 282, title, label, line))
+    for (const [name, title, label, line] of LINKS) write(`link-${name}-${mode}.svg`, cell(linkCard(t, ROW / 3 - GAP, title, label, line)))
     write(`h-join-${mode}.svg`, heading(t, 'openstore join'))
-    write(`join-${mode}.svg`, joinPanel(t, counts))
-    for (const [name, title, label, line] of ACTIONS) write(`act-${name}-${mode}.svg`, linkCard(t, 430, title, label, line))
-    for (const a of latest) write(`app-${a.slug}-${mode}.svg`, await appCard(t, a))
-    for (const r of work) write(`repo-${r.name}-${mode}.svg`, repoCard(t, r))
-    for (const r of releases) write(`release-${r.name}-${mode}.svg`, releaseCard(t, r))
+    write(`join-${mode}.svg`, joinPanel(t))
+    for (const f of favs) write(`fav-${f.repo}-${mode}.svg`, cell(await favCard(t, f)))
+    write(`tree-top-${mode}.svg`, treeTop(t))
+    write(`tree-bottom-${mode}.svg`, treeBottom(t))
+    const kinds = Object.keys(groups)
+    for (const [i, kind] of kinds.entries()) {
+      const { n, list } = groups[kind]
+      write(`tree-${kind}-${mode}.svg`, treeLabel(t, kind, n, i === kinds.length - 1))
+      for (let k = 0; k < TREE.slots; k++) write(`tree-${kind}-${k}-${mode}.svg`, await treeSlot(t, list[k], k === TREE.slots - 1))
+    }
+    const iconOf = repo => bySource(apps, repo)?.icon
+    for (const a of newApps) write(`new-app-${a.slug}-${mode}.svg`, cell(await miniCard(t, { icon: a.icon, name: a.title, sub: a.summary, meta: shortAgo(new Date(a.time * 1000).toISOString()) })))
+    for (const r of releases) write(`new-rel-${r.name}-${mode}.svg`, cell(await miniCard(t, { icon: iconOf(r.name), name: r.name, sub: date(r.latestRelease.publishedAt), tag: fit(r.latestRelease.tagName, 11.5, 90) })))
+    for (const r of work) write(`new-work-${r.name}-${mode}.svg`, cell(await miniCard(t, { icon: iconOf(r.name), name: r.name, sub: r.description ?? '', meta: shortAgo(r.workedAt) })))
   }
-  const tiles = new Set()
-  for (const list of Object.values(groups)) for (const a of list) {
-    if (tiles.has(a.slug)) continue
-    const tile = await iconTile(a)
-    if (tile) { writeFileSync(join(ASSETS, 'icons', `${a.slug}.svg`), tile); tiles.add(a.slug) }
-  }
-
-  const pic = (name, alt, width) =>
-    `<picture><source media="(prefers-color-scheme: dark)" srcset="assets/${name}-dark.svg"><img src="assets/${name}-light.svg" width="${width}" alt="${esc(alt)}"></picture>`
+  const pic = (name, alt, width, align = '') =>
+    `<picture><source media="(prefers-color-scheme: dark)" srcset="assets/${name}-dark.svg"><img src="assets/${name}-light.svg" width="${width}"${align && ` align="${align}"`} alt="${esc(alt)}"></picture>`
+  // Images placed edge to edge on one line, a new line every perRow.
+  const tight = (items, perRow, make) => items.map((x, i) => make(x) + ((i + 1) % perRow === 0 && i < items.length - 1 ? '<br>' : '')).join('')
+  const pct = (part, whole) => `${+(part / whole * 100).toFixed(4)}%`
   const link = (href, inner) => `<a href="${href}">${inner}</a>`
   const rows = (items, perRow, make) => {
     const out = []
@@ -377,26 +438,32 @@ async function main() {
     return out.join('\n\n')
   }
 
+  const kinds = Object.keys(groups)
+  const treeRow = kind => `<a href="${STORE_DEV}">${pic(`tree-${kind}`, `${kind}: ${groups[kind].n} apps`, pct(TREE.label, 880), 'top')}</a>` +
+    Array.from({ length: TREE.slots }, (_, k) => {
+      const a = groups[kind].list[k], img = pic(`tree-${kind}-${k}`, a ? a.title : '', pct(TREE.slot, 880), 'top')
+      return a ? `<a href="${STORE_APP(a.slug)}">${img}</a>` : img
+    }).join('')
   const md = [
     '<!-- This file is made by scripts/build.mjs every day. Edit the script, not this file. -->',
     link('https://p32929.github.io/', pic('hero', 'Fayaz Bin Salam, software engineer', '100%')),
-    `<p>\n${LINKS.map(([n, , label, , href]) => link(href, pic(`link-${n}`, label, '32.5%'))).join('\n')}\n</p>`,
-    link(STORE_DEV, pic('h-apps', 'Latest apps', '100%')),
-    rows(latest, 2, a => link(STORE_APP(a.slug), pic(`app-${a.slug}`, `${a.title}: ${a.summary}`, '49%'))),
-    link(`https://github.com/${USER}?tab=repositories&sort=updated`, pic('h-work', 'Recently working on', '100%')),
-    rows(work, 3, r => link(r.url, pic(`repo-${r.name}`, `${r.name}: ${r.description}`, '32.5%'))),
-    link(`https://github.com/${USER}?tab=repositories`, pic('h-releases', 'New releases', '100%')),
-    rows(releases, 3, r => link(r.latestRelease.url, pic(`release-${r.name}`, `${r.name} ${r.latestRelease.tagName}`, '32.5%'))),
+    `<p>${tight(LINKS, 3, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, pct(ROW / 3, ROW), 'top')))}</p>`,
+    link(STORE_DEV, pic('h-fav', 'My favourite projects', '100%')),
+    `<p>${tight(favs, 2, f => link(f.href, pic(`fav-${f.repo}`, `${f.title}: ${f.summary}`, '50%', 'top')))}</p>`,
     link(STORE_DEV, pic('h-build', 'What I build', '100%')),
-    Object.entries(groups).map(([kind, list]) =>
-      `<p><code>${kind}/</code><br>\n${list.filter(a => tiles.has(a.slug)).map(a => link(STORE_APP(a.slug), `<img src="assets/icons/${a.slug}.svg" width="48" height="48" alt="${esc(a.title)}" title="${esc(a.title)}">`)).join('\n')}\n</p>`).join('\n\n'),
+    `<p>${pic('tree-top', 'apps', '100%', 'top')}<br>${kinds.map(treeRow).join('<br>')}<br>${pic('tree-bottom', '', '100%', 'top')}</p>`,
+    link(`https://github.com/${USER}?tab=repositories&sort=updated`, pic('h-new', "What's new", '100%')),
+    `<p>${[
+      [pic('l-apps', 'New on OpenStore', '100%', 'top'), tight(newApps, 3, a => link(STORE_APP(a.slug), pic(`new-app-${a.slug}`, `${a.title}: ${a.summary}`, pct(ROW / 3, ROW), 'top')))],
+      [pic('l-releases', 'New releases', '100%', 'top'), tight(releases, 3, r => link(r.latestRelease.url, pic(`new-rel-${r.name}`, `${r.name} ${r.latestRelease.tagName}`, pct(ROW / 3, ROW), 'top')))],
+      [pic('l-work', 'Working on', '100%', 'top'), tight(work, 3, r => link(r.url, pic(`new-work-${r.name}`, `${r.name}: ${r.description}`, pct(ROW / 3, ROW), 'top')))],
+    ].map(([l, row]) => `${l}<br>${row}`).join('<br>')}</p>`,
     link('https://openstore.pfay.workers.dev/add', pic('h-join', 'Put your own apps on OpenStore', '100%')),
-    link('https://openstore.pfay.workers.dev/add', pic('join', `Ship your apps on OpenStore: ${counts.developers} developers, ${counts.apps} apps`, '100%')),
-    `<p>\n${ACTIONS.map(([n, , label, , href], i) => link(href, pic(`act-${n}`, label, '49%')) + (i === 1 ? '\n</p>\n<p>' : '')).join('\n')}\n</p>`,
+    link('https://openstore.pfay.workers.dev/add', pic('join', 'How to put your apps on OpenStore: 4 steps', '100%')),
     '<p>\n<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>\n<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>\n</p>',
   ].join('\n\n') + '\n'
   writeFileSync(join(ROOT, 'README.md'), md)
-  console.log(`latest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}\ngroups: ${Object.entries(groups).map(([k, l]) => `${k}=${l.length}`).join(' ')}`)
+  console.log(`favourites: ${favs.map(f => f.title).join(', ')}\nlatest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}\ngroups: ${Object.entries(groups).map(([k, g]) => `${k}=${g.n}`).join(' ')}`)
 }
 
 await main()

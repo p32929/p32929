@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['scripts/**', 'featured.json', '.github/workflows/update.yml']
+    paths: ['scripts/**', 'featured.json', 'favourites.json', '.github/workflows/update.yml']
 
 permissions:
   contents: write
