@@ -82,7 +82,9 @@ function listing(text) {
 function openstore() {
   const dir = mkdtempSync(join(tmpdir(), 'openstore-'))
   try {
-    execFileSync('git', ['clone', '-q', '--filter=blob:none', `https://github.com/${STORE_REPO}.git`, dir])
+    // Only the apps/ folder is checked out: the screenshots would make this take minutes.
+    execFileSync('git', ['clone', '-q', '--filter=blob:none', '--sparse', `https://github.com/${STORE_REPO}.git`, dir])
+    execFileSync('git', ['-C', dir, 'sparse-checkout', 'set', 'apps'])
     // When was each listing added (or renamed into place)? Newest first.
     const log = execFileSync('git', ['-C', dir, 'log', '--diff-filter=AR', '--name-status', '--format=@%ct', '--', 'apps'], { encoding: 'utf8' })
     const added = {}
@@ -110,8 +112,11 @@ function openstore() {
 // Small PNG of an icon, made by wsrv.nl at build time, embedded as base64
 // (GitHub does not load outside images inside an SVG).
 const iconCache = {}
+const DISK = process.env.ICON_CACHE // local testing only: keep icons on disk between runs
 async function iconData(icon) {
   if (icon in iconCache) return iconCache[icon]
+  const diskFile = DISK && join(DISK, Buffer.from(icon).toString('base64url'))
+  if (diskFile && existsSync(diskFile)) return (iconCache[icon] = readFileSync(diskFile, 'utf8') || null)
   const raw = /^https?:/.test(icon) ? icon.replace(/^https?:\/\//, '') : `raw.githubusercontent.com/${STORE_REPO}/main/${icon}`
   let data = null
   for (const url of [`https://wsrv.nl/?url=${raw}&w=128&h=128&fit=contain&output=png`, `https://${raw}`]) {
@@ -123,6 +128,7 @@ async function iconData(icon) {
       break
     } catch {}
   }
+  if (diskFile) { mkdirSync(DISK, { recursive: true }); writeFileSync(diskFile, data ?? '') }
   return (iconCache[icon] = data)
 }
 
@@ -243,23 +249,6 @@ async function favCard(t, f) {
     lines.map((l, i) => text(86, 58 + i * 18, l, { size: 12.5, fill: t.mute })).join(''))
 }
 
-// One compact row in "what's new": icon, name, one line, and a date or tag on the right.
-async function miniCard(t, { icon, name, sub, meta, tag }) {
-  const W = ROW / 3 - GAP, H = 66
-  const data = icon ? await iconData(icon) : null
-  const metaW = tag ? charW(11.5) * tag.length + 16 : charW(11.5) * meta.length
-  const x = 62
-  return svg(W, H,
-    rect(0.5, 0.5, W - 1, H - 1, 10, t.panel, t.line) +
-    (data ? image(data, 14, 15, 36) : mono(t, name, 14, 15, 36)) +
-    text(x, 30, fit(name, 13.5, W - x - 14 - metaW - 8), { size: 13.5, weight: 700, fill: t.ink }) +
-    text(x, 49, fit(sub, 11.5, W - x - 14), { size: 11.5, fill: t.mute }) +
-    (tag ? pill(t, W - 14, 15, tag).svg : text(W - 14, 30, meta, { size: 11.5, fill: t.mute, anchor: 'end' })))
-}
-
-// Group label inside "what's new".
-const label = (t, s) => svg(ROW, 28, text(GAP / 2 + 2, 19, `# ${s}`, { size: 13, weight: 600, fill: t.mute }))
-
 const ago = iso => {
   const days = Math.floor((Date.now() - Date.parse(iso)) / 864e5)
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : days < 365 ? `${Math.floor(days / 30)} months ago` : `${Math.floor(days / 365)} years ago`
@@ -301,37 +290,96 @@ function joinPanel(t) {
 
 // tree ~/apps: one panel built from strips, so every icon can be its own link.
 // The pieces line up because they are placed with align=top and no gaps.
-const TREE = { label: 220, slot: 82.5, slots: 8, rowH: 64 }
-function treeTop(t) {
-  const W = 880, H = 64
+const TREE = { label: 232, slot: 81, slots: 8, rowH: 62 }
+// Window top and bottom as strips of any width (sides drawn by each row strip).
+function stripTop(t, W, title, H = 46) {
   return svg(W, H,
     `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}z" fill="${t.panel}"/>` +
     `<path d="M0.5 ${H}V10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V${H}" fill="none" stroke="${t.line}"/>` +
     `<path d="M0.5 10.5a10 10 0 0 1 10-10h${W - 21}a10 10 0 0 1 10 10V32.5H0.5z" fill="${t.chrome}"/>` +
     rect(0.5, 32, W - 1, 1, 0, t.line) +
     [0, 1, 2].map(i => `<circle cx="${18 + i * 16}" cy="17" r="5" fill="${t.dot}"/>`).join('') +
-    text(W / 2, 21.5, '~/apps', { size: 12, weight: 500, fill: t.mute, anchor: 'middle' }) +
-    text(28, 56, '~/apps', { size: 14, weight: 700, fill: t.ink }) + rect(36, 60, 1.5, H - 60, 0, t.dot) +
-    '')
+    text(W / 2, 21.5, fit(title, 12, W - 140), { size: 12, weight: 500, fill: t.mute, anchor: 'middle' }))
 }
-function treeLabel(t, kind, n, last) {
-  const { label: W, rowH: H } = TREE, x = 36, mid = H / 2
-  return svg(W, H,
-    rect(0, 0, W, H, 0, t.panel) + rect(0, 0, 1, H, 0, t.line) +
-    rect(x, 0, 1.5, last ? mid : H, 0, t.dot) + rect(x, mid - 0.75, 20, 1.5, 0, t.dot) +
-    text(x + 28, mid + 5, `${kind}/`, { size: 14, weight: 700, fill: t.acc }) +
-    text(x + 28 + charW(14) * (kind.length + 1) + 8, mid + 5, String(n), { size: 12, fill: t.mute }))
+function stripBottom(t, W, H = 16, body = '') {
+  return svg(W, H, `<path d="M0.5 0V${H - 10.5}a10 10 0 0 0 10 10h${W - 21}a10 10 0 0 0 10-10V0" fill="${t.panel}" stroke="${t.line}"/>` + body)
 }
-async function treeSlot(t, a, isLast) {
-  const { slot: W, rowH: H } = TREE, s = 44
-  const data = a ? await iconData(a.icon) : null
-  return svg(W, H,
-    rect(0, 0, W, H, 0, t.panel) + (isLast ? rect(W - 1, 0, 1, H, 0, t.line) : '') +
-    (data ? image(data, (W - s) / 2, (H - s) / 2, s) : ''))
+// A body strip: panel colour, left and/or right border.
+const strip = (t, W, H, body, left = true, right = true) =>
+  svg(W, H, rect(0, 0, W, H, 0, t.panel) + (left ? rect(0, 0, 1, H, 0, t.line) : '') + (right ? rect(W - 1, 0, 1, H, 0, t.line) : '') + body)
+
+const TX = 34 // x of the tree trunk
+function treeTop(t) {
+  const W = 880, H = 66
+  return svg(W, H, stripTop(t, W, '~/apps', H).replace(/^<svg[^>]*>|<\/svg>$/g, '') +
+    text(TX - 6, 58, '~/apps', { size: 14, weight: 700, fill: t.ink }) + rect(TX, 62, 1.5, H - 62, 0, t.dot))
 }
-function treeBottom(t) {
-  const W = 880, H = 16
-  return svg(W, H, `<path d="M0.5 0V${H - 10.5}a10 10 0 0 0 10 10h${W - 21}a10 10 0 0 0 10-10V0" fill="${t.panel}" stroke="${t.line}"/>`)
+function treeLabel(t, kind, last) {
+  const { label: W, rowH: H } = TREE, mid = H / 2
+  const name = `${kind}/`
+  return strip(t, W, H,
+    rect(TX, 0, 1.5, last ? mid : H, 0, t.dot) + rect(TX, mid - 0.75, 18, 1.5, 0, t.dot) +
+    text(TX + 26, mid + 5, name, { size: 14, weight: 700, fill: t.acc }) +
+    // a faint dotted leader from the folder name to its icons
+    `<path d="M${(TX + 26 + charW(14) * name.length + 10).toFixed(1)} ${mid}H${W - 10}" stroke="${t.dot}" stroke-width="1.5" stroke-dasharray="1.5 5" stroke-linecap="round"/>`, true, false)
+}
+// One icon on a soft tile, so icons of different styles look like one set.
+// The last slot becomes a "+N" chip when a folder has more apps than fit.
+async function treeSlot(t, a, isLast, more = 0) {
+  const { slot: W, rowH: H } = TREE, tile = 50, s = 36
+  const tx = (W - tile) / 2, ty = (H - tile) / 2
+  let body = ''
+  if (more > 0) {
+    body = rect(tx, ty, tile, tile, 13, t.accSoft) + text(W / 2, H / 2 + 5, `+${more}`, { size: 14, weight: 700, fill: t.acc, anchor: 'middle' })
+  } else if (a) {
+    const data = await iconData(a.icon)
+    body = rect(tx + 0.5, ty + 0.5, tile - 1, tile - 1, 13, t.chrome, t.line) +
+      (data ? image(data, (W - s) / 2, (H - s) / 2, s) : mono(t, a.title, (W - s) / 2, (H - s) / 2, s))
+  }
+  return strip(t, W, H, body, false, isLast)
+}
+function treeBottom(t, folders, apps) {
+  const W = 880, H = 44
+  return stripBottom(t, W, H, text(TX - 6, 24, `${folders} directories, ${apps} apps`, { size: 12.5, fill: t.mute }))
+}
+
+// ---------- what's new: three layouts ----------
+
+// Badge colours per kind of news.
+const KINDS = {
+  light: { new: ['#1a7f37', '#dafbe1'], release: ['#1d4ed8', '#dbeafe'], wip: ['#9a6700', '#fff8c5'] },
+  dark: { new: ['#3fb950', '#0f2e1a'], release: ['#58a6ff', '#0c2d6b'], wip: ['#d29922', '#3b2a05'] },
+}
+const KIND_LABEL = { new: 'new', release: 'release', wip: 'wip' }
+function badge(t, mode, kind, x, y, w) {
+  const [fg, bg] = KINDS[mode][kind]
+  return rect(x, y, w, 20, 5, bg) + text(x + w / 2, y + 14, KIND_LABEL[kind], { size: 11.5, weight: 700, fill: fg, anchor: 'middle' })
+}
+const short = iso => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+async function icon(t, item, x, y, s) {
+  const data = item.icon ? await iconData(item.icon) : null
+  return data ? image(data, x, y, s) : mono(t, item.name, x, y, s)
+}
+
+// What's new as a timeline: a line with a dot per item, newest first.
+const WN_C = { row: 66, lineX: 118 }
+async function wnRowC(t, mode, it, i, n) {
+  const W = 880, H = WN_C.row, mid = H / 2, X = WN_C.lineX
+  const [fg] = KINDS[mode][it.kind]
+  const bw = charW(11.5) * KIND_LABEL[it.kind].length + 18
+  const name = fit(it.name, 14, 260), nw = charW(14) * name.length
+  const rw = charW(12) * it.right.length
+  return strip(t, W, H,
+    rect(X, i === 0 ? mid : 0, 1.5, i === 0 && i === n - 1 ? 0 : i === n - 1 ? mid : i === 0 ? H - mid : H, 0, t.dot) +
+    `<circle cx="${X + 0.75}" cy="${mid}" r="7" fill="${t.panel}" stroke="${fg}" stroke-width="2.5"/>` +
+    `<circle cx="${X + 0.75}" cy="${mid}" r="3" fill="${fg}"/>` +
+    text(28, mid - 2, short(it.when), { size: 13, weight: 700, fill: t.ink }) +
+    text(28, mid + 15, new Date(it.when).getUTCFullYear(), { size: 11.5, fill: t.mute }) +
+    await icon(t, it, X + 26, mid - 19, 38) +
+    text(X + 78, mid - 3, name, { size: 14, weight: 700, fill: t.ink }) +
+    badge(t, mode, it.kind, X + 78 + nw + 10, mid - 17.5, bw) +
+    text(X + 78, mid + 16, fit(it.sub, 12.5, W - 28 - rw - 16 - X - 78), { size: 12.5, fill: t.mute }) +
+    text(W - 28, mid + 5, it.right, { size: 12, weight: it.kind === 'release' ? 700 : 400, fill: it.kind === 'release' ? KINDS[mode].release[0] : t.mute, anchor: 'end' }))
 }
 
 
@@ -394,8 +442,21 @@ async function main() {
     const pinned = (featured[kind] ?? []).map(s => apps.find(a => a.slug === s)).filter(Boolean)
     const rest = apps.filter(a => available(a) && kindsOf(a).has(kind) && !pinned.includes(a))
     const all = [...pinned, ...rest]
-    if (all.length) groups[kind] = { n: all.length, list: all.slice(0, TREE.slots) }
+    if (all.length) groups[kind] = { n: all.length, list: all }
   }
+
+  // Everything new in one timeline, newest first.
+  const iconOfRepo = repo => bySource(apps, repo)?.icon
+  const news = {
+    new: newApps.map(a => ({ kind: 'new', icon: a.icon, name: a.title, sub: a.summary, when: new Date(a.time * 1000).toISOString(), right: shortAgo(new Date(a.time * 1000).toISOString()), href: STORE_APP(a.slug) })),
+    release: releases.map(r => ({ kind: 'release', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.latestRelease.publishedAt, right: fit(r.latestRelease.tagName, 12, 90), href: r.latestRelease.url })),
+    wip: work.map(r => ({ kind: 'wip', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.workedAt, right: shortAgo(r.workedAt), href: r.url })),
+  }
+  // A repo with a new release is not listed again as "working on" in the mixed lists.
+  const released = new Set(news.release.map(r => r.name))
+  const allNews = [...news.new, ...news.release, ...news.wip.filter(w => !released.has(w.name))].sort((a, b) => Date.parse(b.when) - Date.parse(a.when))
+  const timeline = allNews.slice(0, 6)
+  const treeApps = new Set(Object.values(groups).flatMap(g => g.list)).size
 
   rmSync(ASSETS, { recursive: true, force: true })
   mkdirSync(join(ASSETS, 'icons'), { recursive: true })
@@ -405,26 +466,23 @@ async function main() {
     write(`hero-${mode}.svg`, hero(t, data))
     write(`h-fav-${mode}.svg`, heading(t, 'ls ~/favourites'))
     write(`h-new-${mode}.svg`, heading(t, 'whatsnew'))
-    write(`l-apps-${mode}.svg`, label(t, 'new on openstore'))
-    write(`l-releases-${mode}.svg`, label(t, 'new releases'))
-    write(`l-work-${mode}.svg`, label(t, 'working on'))
     write(`h-build-${mode}.svg`, heading(t, 'tree ~/apps'))
     for (const [name, title, label, line] of LINKS) write(`link-${name}-${mode}.svg`, cell(linkCard(t, ROW / 3 - GAP, title, label, line)))
     write(`h-join-${mode}.svg`, heading(t, 'openstore join'))
     write(`join-${mode}.svg`, joinPanel(t))
     for (const f of favs) write(`fav-${f.repo}-${mode}.svg`, cell(await favCard(t, f)))
     write(`tree-top-${mode}.svg`, treeTop(t))
-    write(`tree-bottom-${mode}.svg`, treeBottom(t))
     const kinds = Object.keys(groups)
+    write(`tree-bottom-${mode}.svg`, treeBottom(t, kinds.length, treeApps))
     for (const [i, kind] of kinds.entries()) {
       const { n, list } = groups[kind]
-      write(`tree-${kind}-${mode}.svg`, treeLabel(t, kind, n, i === kinds.length - 1))
-      for (let k = 0; k < TREE.slots; k++) write(`tree-${kind}-${k}-${mode}.svg`, await treeSlot(t, list[k], k === TREE.slots - 1))
+      write(`tree-${kind}-${mode}.svg`, treeLabel(t, kind, i === kinds.length - 1))
+      const more = n > TREE.slots ? n - (TREE.slots - 1) : 0
+      for (let k = 0; k < TREE.slots; k++) write(`tree-${kind}-${k}-${mode}.svg`, await treeSlot(t, list[k], k === TREE.slots - 1, more && k === TREE.slots - 1 ? more : 0))
     }
-    const iconOf = repo => bySource(apps, repo)?.icon
-    for (const a of newApps) write(`new-app-${a.slug}-${mode}.svg`, cell(await miniCard(t, { icon: a.icon, name: a.title, sub: a.summary, meta: shortAgo(new Date(a.time * 1000).toISOString()) })))
-    for (const r of releases) write(`new-rel-${r.name}-${mode}.svg`, cell(await miniCard(t, { icon: iconOf(r.name), name: r.name, sub: date(r.latestRelease.publishedAt), tag: fit(r.latestRelease.tagName, 11.5, 90) })))
-    for (const r of work) write(`new-work-${r.name}-${mode}.svg`, cell(await miniCard(t, { icon: iconOf(r.name), name: r.name, sub: r.description ?? '', meta: shortAgo(r.workedAt) })))
+      write(`wn-top-${mode}.svg`, stripTop(t, 880, '~/timeline', 50))
+      for (const [i, it] of timeline.entries()) write(`wn-${i}-${mode}.svg`, await wnRowC(t, mode, it, i, timeline.length))
+      write(`wn-bottom-${mode}.svg`, stripBottom(t, 880, 18))
   }
   const pic = (name, alt, width, align = '') =>
     `<picture><source media="(prefers-color-scheme: dark)" srcset="assets/${name}-dark.svg"><img src="assets/${name}-light.svg" width="${width}"${align && ` align="${align}"`} alt="${esc(alt)}"></picture>`
@@ -439,10 +497,14 @@ async function main() {
   }
 
   const kinds = Object.keys(groups)
-  const treeRow = kind => `<a href="${STORE_DEV}">${pic(`tree-${kind}`, `${kind}: ${groups[kind].n} apps`, pct(TREE.label, 880), 'top')}</a>` +
+  const full = (name, alt) => pic(name, alt, '100%', 'top')
+  const whatsNewMd = () =>
+    `<p>${full('wn-top', "What's new")}<br>${timeline.map((it, i) => link(it.href, full(`wn-${i}`, `${it.kind}: ${it.name}, ${it.sub}`))).join('<br>')}<br>${full('wn-bottom', '')}</p>`
+  const treeRow = kind => `<a href="${STORE_DEV}">${pic(`tree-${kind}`, `${kind}`, pct(TREE.label, 880), 'top')}</a>` +
     Array.from({ length: TREE.slots }, (_, k) => {
-      const a = groups[kind].list[k], img = pic(`tree-${kind}-${k}`, a ? a.title : '', pct(TREE.slot, 880), 'top')
-      return a ? `<a href="${STORE_APP(a.slug)}">${img}</a>` : img
+      const { n, list } = groups[kind], chip = n > TREE.slots && k === TREE.slots - 1
+      const a = list[k], img = pic(`tree-${kind}-${k}`, chip ? `${n - k} more ${kind} apps` : a ? a.title : '', pct(TREE.slot, 880), 'top')
+      return chip ? `<a href="${STORE_DEV}">${img}</a>` : a ? `<a href="${STORE_APP(a.slug)}">${img}</a>` : img
     }).join('')
   const md = [
     '<!-- This file is made by scripts/build.mjs every day. Edit the script, not this file. -->',
@@ -453,11 +515,7 @@ async function main() {
     link(STORE_DEV, pic('h-build', 'What I build', '100%')),
     `<p>${pic('tree-top', 'apps', '100%', 'top')}<br>${kinds.map(treeRow).join('<br>')}<br>${pic('tree-bottom', '', '100%', 'top')}</p>`,
     link(`https://github.com/${USER}?tab=repositories&sort=updated`, pic('h-new', "What's new", '100%')),
-    `<p>${[
-      [pic('l-apps', 'New on OpenStore', '100%', 'top'), tight(newApps, 3, a => link(STORE_APP(a.slug), pic(`new-app-${a.slug}`, `${a.title}: ${a.summary}`, pct(ROW / 3, ROW), 'top')))],
-      [pic('l-releases', 'New releases', '100%', 'top'), tight(releases, 3, r => link(r.latestRelease.url, pic(`new-rel-${r.name}`, `${r.name} ${r.latestRelease.tagName}`, pct(ROW / 3, ROW), 'top')))],
-      [pic('l-work', 'Working on', '100%', 'top'), tight(work, 3, r => link(r.url, pic(`new-work-${r.name}`, `${r.name}: ${r.description}`, pct(ROW / 3, ROW), 'top')))],
-    ].map(([l, row]) => `${l}<br>${row}`).join('<br>')}</p>`,
+    whatsNewMd(),
     link('https://openstore.pfay.workers.dev/add', pic('h-join', 'Put your own apps on OpenStore', '100%')),
     link('https://openstore.pfay.workers.dev/add', pic('join', 'How to put your apps on OpenStore: 4 steps', '100%')),
     '<p>\n<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>\n<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>\n</p>',
