@@ -250,12 +250,6 @@ const ROW = 880 + GAP // a full row of cells, in the same units as the cards
 // Section heading: a prompt line on its own.
 const heading = (t, cmd) => svg(880, 40, prompt(t, 4, 26, cmd, 16))
 
-// A short tag for the best selling point.
-function pill(t, xRight, y, label) {
-  const w = charW(11.5) * label.length + 16
-  return { w, svg: rect(xRight - w, y, w, 20, 10, t.accSoft) + text(xRight - w + 8, y + 14, label, { size: 11.5, weight: 600, fill: t.acc }) }
-}
-
 // Monogram when there is no app icon.
 const mono = (t, s, x, y, size) =>
   rect(x, y, size, size, size * 0.22, t.accSoft) +
@@ -263,21 +257,13 @@ const mono = (t, s, x, y, size) =>
 
 async function favCard(t, f) {
   const W = ROW / 2 - GAP, H = 92
-  const p = pill(t, W - 18, 18, f.pill)
   const lines = wrap(f.summary, 12.5, W - 106, 2)
   return svg(W, H,
     rect(0.5, 0.5, W - 1, H - 1, 10, t.panel, t.line) +
-    image(await iconData(f.icon), 18, 20, 52) + p.svg +
-    text(86, 34, fit(f.title, 15, W - 106 - p.w - 8), { size: 15, weight: 700, fill: t.ink }) +
+    image(await iconData(f.icon), 18, 20, 52) +
+    text(86, 34, fit(f.title, 15, W - 106), { size: 15, weight: 700, fill: t.ink }) +
     lines.map((l, i) => text(86, 58 + i * 18, l, { size: 12.5, fill: t.mute })).join(''))
 }
-
-const ago = iso => {
-  const days = Math.floor((Date.now() - Date.parse(iso)) / 864e5)
-  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 30 ? `${days} days ago` : days < 365 ? `${Math.floor(days / 30)} months ago` : `${Math.floor(days / 365)} years ago`
-}
-const date = iso => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-const shortAgo = iso => ago(iso).replace(/ days ago$/, 'd ago').replace(/ months ago$/, 'mo ago').replace(/ years ago$/, 'y ago')
 
 // A small linked card: title bar, bold name, one line, an arrow button.
 function linkCard(t, W, title, name, line) {
@@ -320,16 +306,6 @@ const strip = (t, W, H, body, left = true, right = true) =>
 
 // ---------- what's new: three layouts ----------
 
-// Badge colours per kind of news.
-const KINDS = {
-  light: { new: ['#1a7f37', '#dafbe1'], release: ['#1d4ed8', '#dbeafe'], wip: ['#9a6700', '#fff8c5'] },
-  dark: { new: ['#3fb950', '#0f2e1a'], release: ['#58a6ff', '#0c2d6b'], wip: ['#d29922', '#3b2a05'] },
-}
-const KIND_LABEL = { new: 'new', release: 'release', wip: 'wip' }
-function badge(t, mode, kind, x, y, w) {
-  const [fg, bg] = KINDS[mode][kind]
-  return rect(x, y, w, 20, 5, bg) + text(x + w / 2, y + 14, KIND_LABEL[kind], { size: 11.5, weight: 700, fill: fg, anchor: 'middle' })
-}
 const short = iso => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 async function icon(t, item, x, y, s) {
   const data = item.icon ? await iconData(item.icon) : null
@@ -338,12 +314,10 @@ async function icon(t, item, x, y, s) {
 
 // What's new as a timeline: a line with a dot per item, newest first.
 const WN_C = { row: 66, lineX: 118 }
-async function wnRowC(t, mode, it, i, n) {
+async function wnRowC(t, it, i, n) {
   const W = 880, H = WN_C.row, mid = H / 2, X = WN_C.lineX
-  const [fg] = KINDS[mode][it.kind]
-  const bw = charW(11.5) * KIND_LABEL[it.kind].length + 18
-  const name = fit(it.name, 14, 260), nw = charW(14) * name.length
-  const rw = charW(12) * it.right.length
+  const fg = t.acc
+  const name = fit(it.name, 14, W - 28 - X - 78)
   return strip(t, W, H,
     rect(X, i === 0 ? mid : 0, 1.5, i === 0 && i === n - 1 ? 0 : i === n - 1 ? mid : i === 0 ? H - mid : H, 0, t.dot) +
     `<circle cx="${X + 0.75}" cy="${mid}" r="7" fill="${t.panel}" stroke="${fg}" stroke-width="2.5"/>` +
@@ -352,24 +326,13 @@ async function wnRowC(t, mode, it, i, n) {
     text(28, mid + 15, new Date(it.when).getUTCFullYear(), { size: 11.5, fill: t.mute }) +
     await icon(t, it, X + 26, mid - 19, 38) +
     text(X + 78, mid - 3, name, { size: 14, weight: 700, fill: t.ink }) +
-    badge(t, mode, it.kind, X + 78 + nw + 10, mid - 17.5, bw) +
-    text(X + 78, mid + 16, fit(it.sub, 12.5, W - 28 - rw - 16 - X - 78), { size: 12.5, fill: t.mute }) +
-    text(W - 28, mid + 5, it.right, { size: 12, weight: it.kind === 'release' ? 700 : 400, fill: it.kind === 'release' ? KINDS[mode].release[0] : t.mute, anchor: 'end' }))
+    text(X + 78, mid + 16, fit(it.sub, 12.5, W - 28 - X - 78), { size: 12.5, fill: t.mute }))
 }
 
 
 // ---------- page ----------
 
-const KIND = { Android: 'android', iOS: 'ios', Web: 'web', Windows: 'desktop', MacOS: 'desktop', Linux: 'desktop', CLI: 'cli', Automation: 'automation', Library: 'libraries', Extension: 'extensions' }
-// Selling points we have checked; anything else shows where it runs.
-const PILLS = { rotato: 'zero deps', opencc: 'zero deps', hopper: 'zero deps', HeartCode: 'zero deps', cccsss: 'zero deps', lantern: 'self-hosted', ghcdn: 'self-hosted', notes: 'offline', roxaruu: 'keyboard-first', oaifai: 'ubuntu server' }
-function platformPill(a) {
-  const keys = Object.keys(a.platforms), kinds = [...new Set(keys.map(p => KIND[p]).filter(Boolean))]
-  if (kinds.length >= 3) return 'cross-platform'
-  if (keys.length === 1 && keys[0] === 'MacOS') return 'macOS'
-  return kinds.join(' · ')
-}
-const OPENSTORE_FAV = { title: 'OpenStore', summary: 'The open app store where your listing lives in your own repo. No fees, no review queue.', icon: 'https://openstore.pfay.workers.dev/favicon.svg', href: 'https://openstore.pfay.workers.dev', pill: 'free' }
+const OPENSTORE_FAV = { title: 'OpenStore', summary: 'The open app store where your listing lives in your own repo. No fees, no review queue.', icon: 'https://openstore.pfay.workers.dev/favicon.svg', href: 'https://openstore.pfay.workers.dev' }
 const bySource = (apps, repo) => apps.find(a => a.source.replace(/\/$/, '').toLowerCase() === `https://github.com/${USER}/${repo}`.toLowerCase())
 const available = a => !Object.values(a.platforms).some(u => u.includes('unavailable'))
 
@@ -407,16 +370,16 @@ async function main() {
     if (repo === 'p32929_openstore') return { repo, ...OPENSTORE_FAV }
     const a = bySource(apps, repo)
     if (!a) { console.warn(`favourite ${repo} is not on OpenStore, skipped`); return null }
-    return { repo, title: a.title, summary: a.summary, icon: a.icon, href: STORE_APP(a.slug), pill: PILLS[repo] ?? platformPill(a) }
+    return { repo, title: a.title, summary: a.summary, icon: a.icon, href: STORE_APP(a.slug) }
   }).filter(Boolean) // shown in the order of favourites.json
   const newApps = latest.slice(0, 3)
 
   // Everything new in one timeline, newest first.
   const iconOfRepo = repo => bySource(apps, repo)?.icon
   const news = {
-    new: newApps.map(a => ({ kind: 'new', icon: a.icon, name: a.title, sub: a.summary, when: new Date(a.time * 1000).toISOString(), right: shortAgo(new Date(a.time * 1000).toISOString()), href: STORE_APP(a.slug) })),
-    release: releases.map(r => ({ kind: 'release', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.latestRelease.publishedAt, right: fit(r.latestRelease.tagName, 12, 90), href: r.latestRelease.url })),
-    wip: work.map(r => ({ kind: 'wip', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.workedAt, right: shortAgo(r.workedAt), href: r.url })),
+    new: newApps.map(a => ({ kind: 'new', icon: a.icon, name: a.title, sub: a.summary, when: new Date(a.time * 1000).toISOString(), href: STORE_APP(a.slug) })),
+    release: releases.map(r => ({ kind: 'release', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.latestRelease.publishedAt, href: r.latestRelease.url })),
+    wip: work.map(r => ({ kind: 'wip', icon: iconOfRepo(r.name), name: r.name, sub: r.description ?? '', when: r.workedAt, href: r.url })),
   }
   // A repo with a new release is not listed again as "working on" in the mixed lists.
   const released = new Set(news.release.map(r => r.name))
@@ -437,7 +400,7 @@ async function main() {
     write(`join-${mode}.svg`, joinPanel(t))
     for (const f of favs) write(`fav-${f.repo}-${mode}.svg`, cell(await favCard(t, f)))
       write(`wn-top-${mode}.svg`, stripTop(t, 880, '', 18))
-      for (const [i, it] of timeline.entries()) write(`wn-${i}-${mode}.svg`, await wnRowC(t, mode, it, i, timeline.length))
+      for (const [i, it] of timeline.entries()) write(`wn-${i}-${mode}.svg`, await wnRowC(t, it, i, timeline.length))
       write(`wn-bottom-${mode}.svg`, stripBottom(t, 880, 18))
   }
   const pic = (name, alt, width, align = '') =>
@@ -454,7 +417,7 @@ async function main() {
 
   const full = (name, alt) => pic(name, alt, '100%', 'top')
   const whatsNewMd = () =>
-    `<p>${full('wn-top', "What's new")}<br>${timeline.map((it, i) => link(it.href, full(`wn-${i}`, `${it.kind}: ${it.name}, ${it.sub}`))).join('<br>')}<br>${full('wn-bottom', '')}</p>`
+    `<p>${full('wn-top', "What's new")}<br>${timeline.map((it, i) => link(it.href, full(`wn-${i}`, `${it.name}, ${it.sub}`))).join('<br>')}<br>${full('wn-bottom', '')}</p>`
   const md = [
     '<!-- This file is made by scripts/build.mjs every day. Edit the script, not this file. -->',
     link('https://p32929.github.io/', pic('hero', 'Fayaz Bin Salam, software engineer', '100%')),
