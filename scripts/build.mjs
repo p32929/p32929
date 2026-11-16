@@ -447,7 +447,7 @@ async function main() {
     const a = bySource(apps, repo)
     if (!a) { console.warn(`favourite ${repo} is not on OpenStore, skipped`); return null }
     return { repo, title: a.title, summary: a.summary, icon: a.icon, href: STORE_APP(a.slug), pill: PILLS[repo] ?? platformPill(a) }
-  }).filter(Boolean).sort((x, y) => x.title.localeCompare(y.title, 'en', { sensitivity: 'base', numeric: true }))
+  }).filter(Boolean) // shown in the order of favourites.json
   const newApps = latest.slice(0, 3)
   const featured = existsSync(join(ROOT, 'featured.json')) ? JSON.parse(readFileSync(join(ROOT, 'featured.json'), 'utf8')) : {}
   const groups = {}
