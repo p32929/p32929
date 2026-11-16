@@ -19,9 +19,9 @@
 <a href="https://github.com/p32929?tab=repositories&sort=updated"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/h-work-dark.svg"><img src="assets/h-work-light.svg" width="100%" alt="Recently working on"></picture></a>
 
 <p>
+<a href="https://github.com/p32929/roxaruu"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/repo-roxaruu-dark.svg"><img src="assets/repo-roxaruu-light.svg" width="32.5%" alt="roxaruu: A keyboard-first code editor with terminals built in. Every shortcut shown where it applies. macOS, Windows, Linux, and from any browser."></picture></a>
 <a href="https://github.com/p32929/rotato"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/repo-rotato-dark.svg"><img src="assets/repo-rotato-light.svg" width="32.5%" alt="rotato: Zero-dependency Node.js LLM proxy that auto-rotates API keys for OpenAI, Gemini, Groq and OpenRouter on 429s"></picture></a>
 <a href="https://github.com/p32929/Home"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/repo-Home-dark.svg"><img src="assets/repo-Home-light.svg" width="32.5%" alt="Home: Minimal new-tab homepage extension for Chrome and Firefox — React, TypeScript, Vite and shadcn/ui"></picture></a>
-<a href="https://github.com/p32929/obsidotion"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/repo-obsidotion-dark.svg"><img src="assets/repo-obsidotion-light.svg" width="32.5%" alt="obsidotion: Obsidian plugin that syncs your vault two-way with a Notion database — works on desktop and mobile"></picture></a>
 </p>
 
 <a href="https://github.com/p32929?tab=repositories"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/h-releases-dark.svg"><img src="assets/h-releases-light.svg" width="100%" alt="New releases"></picture></a>
@@ -79,6 +79,6 @@
 </p>
 
 <p>
-<a href="https://p32929.github.io/share/"><img src="https://p32929.github.io/readme/share.svg" width="49%" alt="Share my profile"></a>
-<a href="https://p32929.github.io/support/"><img src="https://p32929.github.io/readme/support.svg" width="49%" alt="Support my work"></a>
+<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>
+<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>
 </p>

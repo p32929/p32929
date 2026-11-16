@@ -325,7 +325,7 @@ async function main() {
     link(STORE_DEV, pic('h-build', 'What I build', '100%')),
     Object.entries(groups).map(([kind, list]) =>
       `<p><code>${kind}/</code><br>\n${list.filter(a => tiles.has(a.slug)).map(a => link(STORE_APP(a.slug), `<img src="assets/icons/${a.slug}.svg" width="48" height="48" alt="${esc(a.title)}" title="${esc(a.title)}">`)).join('\n')}\n</p>`).join('\n\n'),
-    '<p>\n<a href="https://p32929.github.io/share/"><img src="https://p32929.github.io/readme/share.svg" width="49%" alt="Share my profile"></a>\n<a href="https://p32929.github.io/support/"><img src="https://p32929.github.io/readme/support.svg" width="49%" alt="Support my work"></a>\n</p>',
+    '<p>\n<a href="https://p32929.github.io/share/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/share-dark.svg"><img src="https://p32929.github.io/readme/share-light.svg" width="49%" alt="Share my profile"></picture></a>\n<a href="https://p32929.github.io/support/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://p32929.github.io/readme/support-dark.svg"><img src="https://p32929.github.io/readme/support-light.svg" width="49%" alt="Support my work"></picture></a>\n</p>',
   ].join('\n\n') + '\n'
   writeFileSync(join(ROOT, 'README.md'), md)
   console.log(`latest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}\ngroups: ${Object.entries(groups).map(([k, l]) => `${k}=${l.length}`).join(' ')}`)
