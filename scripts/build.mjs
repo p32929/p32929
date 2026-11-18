@@ -9,8 +9,9 @@ import { join } from 'node:path'
 
 const USER = 'p32929'
 const STORE_REPO = 'p32929/p32929_openstore'
-const STORE_APP = slug => `https://openstore.pfay.workers.dev/app/${USER}/${slug}`
-const STORE_DEV = `https://openstore.pfay.workers.dev/dev/${USER}`
+const STORE = 'https://openstore.pfay.workers.dev'
+const STORE_APP = slug => `${STORE}/app/${USER}/${slug}`
+const STORE_DEV = `${STORE}/dev/${USER}`
 const ROOT = new URL('..', import.meta.url).pathname
 const ASSETS = join(ROOT, 'assets')
 const TOKEN = process.env.GITHUB_TOKEN
@@ -134,6 +135,14 @@ function openstore() {
   }
 }
 
+// How many of my OpenStore apps are featured (featured: true in my listing), from the live store's card
+// data, so the favourites section has exactly one card per featured app.
+async function featuredCount() {
+  const res = await fetch(`${STORE}/cards/${USER}.json`, { signal: AbortSignal.timeout(60000) })
+  if (!res.ok) throw new Error(`OpenStore ${STORE}/cards/${USER}.json: HTTP ${res.status}`)
+  return (await res.json()).filter(a => a.featured).length
+}
+
 // Small PNG of an icon, made by wsrv.nl at build time, embedded as base64
 // (GitHub does not load outside images inside an SVG).
 const iconCache = {}
@@ -171,17 +180,6 @@ const charW = size => size * 0.602 // monospace advance width
 function fit(s, size, maxW) {
   const n = Math.floor(maxW / charW(size))
   return s.length <= n ? s : s.slice(0, Math.max(1, n - 1)).trimEnd() + '…'
-}
-function wrap(s, size, maxW, lines) {
-  const n = Math.floor(maxW / charW(size)), out = []
-  let cur = ''
-  for (const w of String(s).split(/\s+/).filter(Boolean)) {
-    const next = cur ? `${cur} ${w}` : w
-    if (next.length > n && cur) { out.push(cur); cur = w } else cur = next
-  }
-  if (cur) out.push(cur)
-  if (out.length > lines) { out.length = lines; out[lines - 1] = fit(out[lines - 1] + ' …', size, maxW) }
-  return out.map(l => fit(l, size, maxW))
 }
 const text = (x, y, s, { size = 14, weight = 400, fill, family = MONO, anchor = 'start' }) =>
   `<text x="${x}" y="${y}" font-family="${family}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}">${esc(s)}</text>`
@@ -255,16 +253,6 @@ const mono = (t, s, x, y, size) =>
   rect(x, y, size, size, size * 0.22, t.accSoft) +
   text(x + size / 2, y + size * 0.66, s.charAt(0).toUpperCase(), { size: size * 0.5, weight: 700, fill: t.acc, anchor: 'middle' })
 
-async function favCard(t, f) {
-  const W = ROW / 2 - GAP, H = 92
-  const lines = wrap(f.summary, 12.5, W - 106, 2)
-  return svg(W, H,
-    rect(0.5, 0.5, W - 1, H - 1, 10, t.panel, t.line) +
-    image(await iconData(f.icon), 18, 20, 52) +
-    text(86, 34, fit(f.title, 15, W - 106), { size: 15, weight: 700, fill: t.ink }) +
-    lines.map((l, i) => text(86, 58 + i * 18, l, { size: 12.5, fill: t.mute })).join(''))
-}
-
 // A small linked card: title bar, bold name, one line, an arrow button.
 function linkCard(t, W, title, name, line) {
   const H = 100
@@ -332,7 +320,6 @@ async function wnRowC(t, it, i, n) {
 
 // ---------- page ----------
 
-const OPENSTORE_FAV = { title: 'OpenStore', summary: 'The open app store where your listing lives in your own repo. No fees, no review queue.', icon: 'https://openstore.pfay.workers.dev/favicon.svg', href: 'https://openstore.pfay.workers.dev' }
 const bySource = (apps, repo) => apps.find(a => a.source.replace(/\/$/, '').toLowerCase() === `https://github.com/${USER}/${repo}`.toLowerCase())
 const available = a => !Object.values(a.platforms).some(u => u.includes('unavailable'))
 
@@ -348,7 +335,7 @@ const LINKS = [
 ]
 
 async function main() {
-  const [gh, apps] = [await github(), openstore()]
+  const [gh, apps, featured] = [await github(), openstore(), await featuredCount()]
   const own = gh.repos.filter(r => !r.isArchived)
 
   const data = {
@@ -365,13 +352,6 @@ async function main() {
     .sort((a, b) => Date.parse(b.workedAt) - Date.parse(a.workedAt)).slice(0, 3)
   const releases = own.filter(r => r.latestRelease && !NOT_WORK.test(r.name))
     .sort((a, b) => Date.parse(b.latestRelease.publishedAt) - Date.parse(a.latestRelease.publishedAt)).slice(0, 3)
-  const favRepos = existsSync(join(ROOT, 'favourites.json')) ? JSON.parse(readFileSync(join(ROOT, 'favourites.json'), 'utf8')) : []
-  const favs = favRepos.map(repo => {
-    if (repo === 'p32929_openstore') return { repo, ...OPENSTORE_FAV }
-    const a = bySource(apps, repo)
-    if (!a) { console.warn(`favourite ${repo} is not on OpenStore, skipped`); return null }
-    return { repo, title: a.title, summary: a.summary, icon: a.icon, href: STORE_APP(a.slug) }
-  }).filter(Boolean) // shown in the order of favourites.json
   const newApps = latest.slice(0, 3)
 
   // Everything new in one timeline, newest first.
@@ -398,7 +378,6 @@ async function main() {
     write(`h-links-${mode}.svg`, heading(t, 'ls ~/links'))
     write(`h-join-${mode}.svg`, heading(t, 'openstore join'))
     write(`join-${mode}.svg`, joinPanel(t))
-    for (const f of favs) write(`fav-${f.repo}-${mode}.svg`, cell(await favCard(t, f)))
       write(`wn-top-${mode}.svg`, stripTop(t, 880, '', 18))
       for (const [i, it] of timeline.entries()) write(`wn-${i}-${mode}.svg`, await wnRowC(t, it, i, timeline.length))
       write(`wn-bottom-${mode}.svg`, stripBottom(t, 880, 18))
@@ -415,6 +394,15 @@ async function main() {
     return out.join('\n\n')
   }
 
+  // My featured apps as OpenStore's own README cards: every featured app (n=all), one card each, linking to
+  // its app. The same HTML the store's cards builder makes for p32929 with "Featured only" and "All matching"
+  // (cardsSnippet() in the store's lib/cards.ts).
+  const featuredCards = () => {
+    const q = 'n=all&featured=true', img = (i, theme) => esc(`${STORE}/cards/${USER}/${i}.svg?${q}&theme=${theme}`)
+    return `<p>${tight(Array.from({ length: featured }, (_, i) => i), 2, i =>
+      `<a href="${esc(`${STORE}/cards/${USER}/${i}?${q}`)}"><picture><source media="(prefers-color-scheme: dark)" srcset="${img(i, 'dark')}"><img src="${img(i, 'light')}" width="50%" align="top" alt="More apps by ${USER} on OpenStore (${i + 1})"></picture></a>`)}</p>`
+  }
+
   const full = (name, alt) => pic(name, alt, '100%', 'top')
   const whatsNewMd = () =>
     `<p>${full('wn-top', "What's new")}<br>${timeline.map((it, i) => link(it.href, full(`wn-${i}`, `${it.name}, ${it.sub}`))).join('<br>')}<br>${full('wn-bottom', '')}</p>`
@@ -424,7 +412,7 @@ async function main() {
     link('https://p32929.github.io/', pic('h-links', 'Links', '100%')),
     `<p>${tight(LINKS, 2, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, '50%', 'top')))}</p>`,
     link(STORE_DEV, pic('h-fav', 'My favourite projects', '100%')),
-    `<p>${tight(favs, 2, f => link(f.href, pic(`fav-${f.repo}`, `${f.title}: ${f.summary}`, '50%', 'top')))}</p>`,
+    featuredCards(),
     link(`https://github.com/${USER}?tab=repositories&sort=updated`, pic('h-new', "What's new", '100%')),
     whatsNewMd(),
     link('https://openstore.pfay.workers.dev/add', pic('h-join', 'Put your own apps on OpenStore', '100%')),
@@ -432,7 +420,7 @@ async function main() {
     `<p>${tight(FOOTER, 2, ([n, , label, , href]) => link(href, pic(`link-${n}`, label, '50%', 'top')))}</p>`,
   ].join('\n\n') + '\n'
   writeFileSync(join(ROOT, 'README.md'), md)
-  console.log(`favourites: ${favs.map(f => f.title).join(', ')}\nlatest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}`)
+  console.log(`featured apps: ${featured}\nlatest: ${latest.map(a => a.slug).join(', ')}\nwork: ${work.map(r => r.name).join(', ')}\nreleases: ${releases.map(r => r.name).join(', ')}`)
 }
 
 await main()
